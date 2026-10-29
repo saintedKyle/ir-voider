@@ -1,5 +1,9 @@
 # IR Voider
 
+<p align="center">
+  <img src="docs/images/banner.png" alt="IR Voider — offline IR remote for Android phones" width="100%">
+</p>
+
 A clean, offline IR remote for **Android phones with an IR blaster**. No ads, no
 account, no internet permission — just your phone's IR LED.
 
@@ -42,6 +46,23 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
 Air conditioners in the built-in database expose **Power only**; full-state
 temperature/mode frames need a separate encoder set. A raw `.ir` capture can add
 more buttons for your own AC.
+
+## Preview
+
+<p align="center">
+  <img src="docs/images/preview.png" alt="IR Voider UI preview: Remote, More and Devices screens" width="100%">
+</p>
+
+<p align="center"><em>Illustrative UI preview of v1.0, generated from the app's layout and palette.</em></p>
+
+<details>
+<summary>Individual screens</summary>
+<p align="center">
+  <img src="docs/images/home.png" alt="Remote screen" width="31%">
+  <img src="docs/images/more.png" alt="More menu" width="31%">
+  <img src="docs/images/devices.png" alt="Devices screen" width="31%">
+</p>
+</details>
 
 ## Phones
 
