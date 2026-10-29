@@ -17,6 +17,9 @@ allow your browser/file manager if the prompt does not appear.
 The app needs **Android 6.0 or newer** and a built-in IR blaster. It does not work
 on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
 
+> This is a sideload APK signed with a debug key, not a Google Play release.
+> Android may show a warning; choose **Install anyway**.
+
 ## Use
 
 1. Tap **≡ More** (top-left) and pick a device category: TV, Air Conditioner,
