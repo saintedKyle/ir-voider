@@ -912,19 +912,23 @@ public class MainActivity extends Activity {
     }
 
     private void transmit(Code code, boolean allowRepeat) {
+        transmit(code, allowRepeat ? DeviceStore.repeats(this) : 1);
+    }
+
+    private void transmit(Code code, int repeats) {
         if (ir == null || !ir.hasIrEmitter()) {
             status.setText("No IR emitter on this phone.");
             return;
         }
         if (irExecutor.isShutdown()) return;
         if (!irBusy.compareAndSet(false, true)) return;
-        final int repeats = allowRepeat ? DeviceStore.repeats(this) : 1;
+        final int count = Math.max(1, Math.min(3, repeats));
         try {
             irExecutor.execute(() -> {
             try {
-                for (int i = 0; i < repeats; i++) {
+                for (int i = 0; i < count; i++) {
                     ir.transmit(code.freq, code.pattern);
-                    if (i + 1 < repeats) Thread.sleep(50);
+                    if (i + 1 < count) Thread.sleep(50);
                 }
             } catch (InterruptedException ignored) {
             } catch (Exception e) {
@@ -936,6 +940,18 @@ public class MainActivity extends Activity {
         } catch (RejectedExecutionException e) {
             irBusy.set(false);
         }
+    }
+
+    private void sendPowerRepeat() {
+        if (current == null) return;
+        Code code = current.buttons.get("power");
+        if (code == null) {
+            status.setText("No POWER code for this remote.");
+            return;
+        }
+        getWindow().getDecorView().performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        transmit(code, 2);
+        status.setText("Sent POWER ×2.");
     }
 
     // ------------------------------------------------------------- auto find
@@ -1102,6 +1118,19 @@ public class MainActivity extends Activity {
             lp.topMargin = dp(10);
             controlsCard.addView(power, lp);
             buttons.put("power", power);
+
+            if ("Air Conditioner".equals(current.category)) {
+                Button power2 = styledButton("POWER ×2", BTN, 14);
+                power2.setOnClickListener(v -> sendPowerRepeat());
+                LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+                p2.topMargin = dp(8);
+                controlsCard.addView(power2, p2);
+                buttons.put("__power2", power2);
+                controlsCard.addView(text(
+                        "Some ACs ignore a single frame. Try POWER ×2 at close range.",
+                        11, MUTED, false));
+            }
         }
 
         List<Page> pages = buildPages();
