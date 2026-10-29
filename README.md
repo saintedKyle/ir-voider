@@ -108,6 +108,7 @@ accepted. Please do not open pull requests. See [CONTRIBUTING.md](CONTRIBUTING.m
 - [BUILDING.md](BUILDING.md) — build from source
 - [CHANGELOG.md](CHANGELOG.md)
 - [PLAY_STORE.md](PLAY_STORE.md) — Google Play release guide
+- [PHONE_ONLY.md](PHONE_ONLY.md) — build and publish an APK from your phone
 
 ---
 
