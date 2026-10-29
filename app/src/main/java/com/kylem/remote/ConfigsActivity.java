@@ -36,14 +36,14 @@ import java.util.UUID;
 
 public class ConfigsActivity extends Activity {
 
-    private static final int BG = 0xFF060A12;
-    private static final int CARD = 0xFF121A2B;
-    private static final int BTN = 0xFF1B2740;
-    private static final int STROKE = 0xFF26344F;
-    private static final int ACCENT = 0xFF22D3EE;
-    private static final int TEXT = 0xFFF8FAFC;
-    private static final int MUTED = 0xFF94A3B8;
-    private static final int DARK = 0xFF04141B;
+    private static final int BG = 0xFF000000;
+    private static final int CARD = 0xFF0A0A0A;
+    private static final int BTN = 0xFF101010;
+    private static final int STROKE = 0xFF262626;
+    private static final int ACCENT = 0xFFF2F2F7;
+    private static final int TEXT = 0xFFF5F5F7;
+    private static final int MUTED = 0xFF8E8E93;
+    private static final int DARK = 0xFF000000;
 
     private static final String[] TYPES = {
             "TV", "Aircon", "LED", "Projector", "Fan", "Soundbar", "Other"
@@ -91,10 +91,9 @@ public class ConfigsActivity extends Activity {
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(CARD);
-        bg.setCornerRadius(dp(24));
+        bg.setCornerRadius(dp(28));
         bg.setStroke(dp(1), STROKE);
         c.setBackground(bg);
-        c.setElevation(dp(3));
         return c;
     }
 
@@ -115,8 +114,9 @@ public class ConfigsActivity extends Activity {
         b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(color);
-        bg.setCornerRadius(dp(16));
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), bg, null));
+        bg.setCornerRadius(dp(20));
+        bg.setStroke(dp(1), STROKE);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), bg, null));
         return b;
     }
 
@@ -134,8 +134,8 @@ public class ConfigsActivity extends Activity {
     }
 
     private GradientDrawable appBackground() {
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xFF05070D, 0xFF0B1220, 0xFF111C31});
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(BG);
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -250,28 +250,19 @@ public class ConfigsActivity extends Activity {
                         + "power or range.",
                 11, MUTED, false));
 
-        Spinner speed = new Spinner(this);
-        String[] speedLabels = {"Fast \u2014 1.5 s", "Normal \u2014 2 s",
-                "Slow \u2014 3 s"};
-        ArrayAdapter<String> sa = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, speedLabels);
-        sa.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        speed.setAdapter(sa);
-        int delay = DeviceStore.scanDelayMs(this);
-        speed.setSelection(delay <= 1600 ? 0 : delay <= 2200 ? 1 : 2);
-        speed.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view,
-                                       int position, long id) {
-                DeviceStore.setScanDelayMs(ConfigsActivity.this,
-                        position == 0 ? 1500 : position == 1 ? 2000 : 3000);
-            }
 
-            @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {
-            }
-        });
-        settings.addView(row("Scan speed", speed));
+        CheckBox forceMode = new CheckBox(this);
+        forceMode.setText("Force mode (3x repeats, 25 ms gaps)");
+        forceMode.setTextColor(TEXT);
+        forceMode.setButtonTintList(ColorStateList.valueOf(ACCENT));
+        forceMode.setChecked(DeviceStore.forceMode(this));
+        forceMode.setOnCheckedChangeListener((buttonView, isChecked) ->
+                DeviceStore.setForceMode(ConfigsActivity.this, isChecked));
+        settings.addView(forceMode);
+        settings.addView(text(
+                "Force repeats frames harder and faster. It does not amplify the "
+                        + "phone's IR LED; range is still limited by hardware.",
+                11, MUTED, false));
 
         CheckBox boostAll = new CheckBox(this);
         boostAll.setText("Boost all buttons (except POWER)");
@@ -362,7 +353,7 @@ public class ConfigsActivity extends Activity {
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setPadding(0, dp(8), 0, 0);
 
-        Button open = button("Open", 0xFF0E7490, Color.WHITE);
+        Button open = button("Open", BTN, TEXT);
         open.setOnClickListener(v -> {
             DeviceStore.rememberSelection(this, d.category, d.brand, d.remote, d.hash);
             Toast.makeText(this, "Opened " + d.name, Toast.LENGTH_SHORT).show();

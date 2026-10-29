@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1 — 2026-10-29
+
+- OLED-black redesign with rounded outlined buttons and cleaner layout.
+- Full-screen scanner: big model display, progress, It worked / Previous /
+  Skip 5 / Stop, 1 s turbo option.
+- Swipeable control pages and expanded buttons (digits, colors, media, info).
+- Force mode: 3x repeats with 25 ms gaps (repeat only, not hardware amplification).
+- Diagnostics screen with IR status, phone, database and tips.
+- All available aircon buttons (temp/mode/fan/swing/timer) where captured.
+- AC POWER x2 and opt-in AC POWER repeat.
+
 ## Unreleased
 
 - Target Android 16 (API 36) for Google Play submission.

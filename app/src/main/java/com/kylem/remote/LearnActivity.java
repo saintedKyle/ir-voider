@@ -45,14 +45,14 @@ public class LearnActivity extends Activity {
 
     private static final int PICK_FILE = 101;
 
-    private static final int BG = 0xFF060A12;
-    private static final int CARD = 0xFF121A2B;
-    private static final int BTN = 0xFF1B2740;
-    private static final int STROKE = 0xFF26344F;
-    private static final int ACCENT = 0xFF22D3EE;
-    private static final int TEXT = 0xFFF8FAFC;
-    private static final int MUTED = 0xFF94A3B8;
-    private static final int DARK = 0xFF04141B;
+    private static final int BG = 0xFF000000;
+    private static final int CARD = 0xFF0A0A0A;
+    private static final int BTN = 0xFF101010;
+    private static final int STROKE = 0xFF262626;
+    private static final int ACCENT = 0xFFF2F2F7;
+    private static final int TEXT = 0xFFF5F5F7;
+    private static final int MUTED = 0xFF8E8E93;
+    private static final int DARK = 0xFF000000;
 
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
@@ -160,10 +160,9 @@ public class LearnActivity extends Activity {
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(CARD);
-        bg.setCornerRadius(dp(24));
+        bg.setCornerRadius(dp(28));
         bg.setStroke(dp(1), STROKE);
         c.setBackground(bg);
-        c.setElevation(dp(3));
         return c;
     }
 
@@ -177,14 +176,15 @@ public class LearnActivity extends Activity {
         b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(color);
-        bg.setCornerRadius(dp(16));
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), bg, null));
+        bg.setCornerRadius(dp(20));
+        bg.setStroke(dp(1), STROKE);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), bg, null));
         return b;
     }
 
     private GradientDrawable appBackground() {
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xFF05070D, 0xFF0B1220, 0xFF111C31});
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(BG);
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }

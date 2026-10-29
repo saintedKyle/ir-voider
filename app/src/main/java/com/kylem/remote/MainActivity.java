@@ -64,17 +64,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
 
-    private static final int BG = 0xFF060A12;
-    private static final int CARD = 0xFF121A2B;
-    private static final int BTN = 0xFF1B2740;
-    private static final int STROKE = 0xFF26344F;
-    private static final int ACCENT = 0xFF22D3EE;
-    private static final int ACCENT2 = 0xFF6366F1;
-    private static final int TEXT = 0xFFF8FAFC;
-    private static final int MUTED = 0xFF94A3B8;
-    private static final int RED = 0xFFE11D48;
-    private static final int GREEN = 0xFF10B981;
-    private static final int DARK = 0xFF04141B;
+    private static final int BG = 0xFF000000;
+    private static final int CARD = 0xFF0A0A0A;
+    private static final int BTN = 0xFF101010;
+    private static final int STROKE = 0xFF262626;
+    private static final int ACCENT = 0xFFFFFFFF;
+    private static final int ACCENT2 = 0xFF22D3EE;
+    private static final int TEXT = 0xFFF5F5F7;
+    private static final int MUTED = 0xFF8E8E93;
+    private static final int RED = 0xFFFF4D6D;
+    private static final int GREEN = 0xFF30D158;
+    private static final int DARK = 0xFF000000;
 
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
@@ -154,13 +154,13 @@ public class MainActivity extends Activity {
     private int pageCount;
     private Spinner brandSpinner;
     private Spinner remoteSpinner;
-    private final Button[] speedButtons = new Button[3];
+    private final Button[] speedButtons = new Button[4];
     private CheckBox allBrands;
     private TextView status;
     private TextView deviceNameText;
     private TextView modelText;
     private TextView categoryLabel;
-    private LinearLayout scanPanel;
+    private Dialog scannerDialog;
     private Button findButton;
     private ProgressBar progress;
     private TextView scanCount;
@@ -314,10 +314,9 @@ public class MainActivity extends Activity {
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(CARD);
-        bg.setCornerRadius(dp(24));
+        bg.setCornerRadius(dp(28));
         bg.setStroke(dp(1), STROKE);
         c.setBackground(bg);
-        c.setElevation(dp(3));
         return c;
     }
 
@@ -338,8 +337,25 @@ public class MainActivity extends Activity {
         b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(color);
-        bg.setCornerRadius(dp(16));
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), bg, null));
+        bg.setCornerRadius(dp(20));
+        bg.setStroke(dp(1), STROKE);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), bg, null));
+        b.setPadding(dp(8), dp(8), dp(8), dp(8));
+        return b;
+    }
+
+    private Button highlightButton(String label, float textSize) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(textSize);
+        b.setTextColor(DARK);
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        b.setStateListAnimator(null);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xFFF2F2F7);
+        bg.setCornerRadius(dp(22));
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22000000), bg, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
         return b;
     }
@@ -369,8 +385,8 @@ public class MainActivity extends Activity {
     }
 
     private GradientDrawable appBackground() {
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xFF05070D, 0xFF0B1220, 0xFF111C31});
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(BG);
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -403,7 +419,7 @@ public class MainActivity extends Activity {
         titles.setOrientation(LinearLayout.VERTICAL);
         titles.addView(text("IR Voider", 22, TEXT, true));
         categoryLabel = text("", 10, ACCENT, false);
-        categoryLabel.setBackground(pill(0xFF0B2E3A, 0xFF155E75));
+        categoryLabel.setBackground(pill(0xFF0A0A0A, 0xFF333333));
         categoryLabel.setPadding(dp(9), dp(3), dp(9), dp(3));
         LinearLayout.LayoutParams catLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -481,8 +497,8 @@ public class MainActivity extends Activity {
         TextView speedLabel = text("Speed", 14, MUTED, false);
         speedLabel.setWidth(dp(58));
         speedRow.addView(speedLabel);
-        String[] speedLabels = {"1.5 s", "2 s", "3 s"};
-        for (int i = 0; i < 3; i++) {
+        String[] speedLabels = {"1 s", "1.5 s", "2 s", "3 s"};
+        for (int i = 0; i < speedButtons.length; i++) {
             final int index = i;
             Button b = styledButton(speedLabels[i], BTN, 13);
             b.setOnClickListener(v -> setScanSpeed(index, true));
@@ -492,56 +508,14 @@ public class MainActivity extends Activity {
             speedButtons[i] = b;
         }
         scanCard.addView(speedRow);
-        setScanSpeed(scanDelayMs <= 1600 ? 0 : scanDelayMs <= 2200 ? 1 : 2, false);
+        setScanSpeed(scanDelayMs <= 1100 ? 0 : scanDelayMs <= 1600 ? 1
+                : scanDelayMs <= 2200 ? 2 : 3, false);
 
-        findButton = gradientButton("Find code", 0xFF22D3EE, 0xFF3B82F6, DARK, 16);
+        findButton = highlightButton("Find code", 16);
         findButton.setOnClickListener(v -> startAutoFind());
         scanCard.addView(findButton, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
 
-        scanPanel = new LinearLayout(this);
-        scanPanel.setOrientation(LinearLayout.VERTICAL);
-        scanPanel.setVisibility(View.GONE);
-
-        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        progress.setMax(1);
-        progress.setProgress(0);
-        progress.setProgressTintList(ColorStateList.valueOf(ACCENT));
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(BTN));
-        LinearLayout.LayoutParams progressLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(8));
-        progressLp.topMargin = dp(12);
-        scanPanel.addView(progress, progressLp);
-
-        scanCount = text("", 13, MUTED, false);
-        scanCount.setPadding(0, dp(8), 0, 0);
-        scanPanel.addView(scanCount);
-        scanName = text("", 17, TEXT, true);
-        scanName.setPadding(0, dp(2), 0, dp(10));
-        scanPanel.addView(scanName);
-
-        LinearLayout scanButtons = new LinearLayout(this);
-        scanButtons.setOrientation(LinearLayout.HORIZONTAL);
-        Button worked = gradientButton("It worked", 0xFF34D399, 0xFF059669,
-                Color.WHITE, 15);
-        worked.setOnClickListener(v -> saveCandidate(nextCandidate - 1));
-        Button previous = styledButton("Previous", BTN, 15);
-        previous.setOnClickListener(v -> rewindOne());
-        Button stop = styledButton("Stop", 0xFF7F1D1D, 15);
-        stop.setOnClickListener(v -> stopAutoFind("Stopped."));
-        LinearLayout.LayoutParams third = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        third.setMargins(0, 0, dp(4), 0);
-        scanButtons.addView(worked, third);
-        LinearLayout.LayoutParams third2 = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        third2.setMargins(dp(4), 0, dp(4), 0);
-        scanButtons.addView(previous, third2);
-        LinearLayout.LayoutParams third3 = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        third3.setMargins(dp(4), 0, 0, 0);
-        scanButtons.addView(stop, third3);
-        scanPanel.addView(scanButtons);
-        scanPanel.addView(text(
-                "Missed it? Tap Previous to replay the code before this one.", 11, MUTED, false));
-        scanCard.addView(scanPanel);
         addCard(root, scanCard);
 
         TextView credit = text(
@@ -656,7 +630,7 @@ public class MainActivity extends Activity {
     }
 
     private void setScanSpeed(int index, boolean persist) {
-        scanDelayMs = index == 0 ? 1500 : index == 1 ? 2000 : 3000;
+        scanDelayMs = index == 0 ? 1000 : index == 1 ? 1500 : index == 2 ? 2000 : 3000;
         if (persist) DeviceStore.setScanDelayMs(this, scanDelayMs);
         for (int i = 0; i < speedButtons.length; i++) {
             Button b = speedButtons[i];
@@ -912,7 +886,9 @@ public class MainActivity extends Activity {
     }
 
     private void transmit(Code code, boolean allowRepeat) {
-        transmit(code, allowRepeat ? DeviceStore.repeats(this) : 1);
+        int repeats = DeviceStore.repeats(this);
+        if (allowRepeat && DeviceStore.forceMode(this)) repeats = Math.max(3, repeats);
+        transmit(code, allowRepeat ? repeats : 1);
     }
 
     private void transmit(Code code, int repeats) {
@@ -928,7 +904,7 @@ public class MainActivity extends Activity {
             try {
                 for (int i = 0; i < count; i++) {
                     ir.transmit(code.freq, code.pattern);
-                    if (i + 1 < count) Thread.sleep(50);
+                    if (i + 1 < count) Thread.sleep(DeviceStore.forceMode(this) ? 25 : 50);
                 }
             } catch (InterruptedException ignored) {
             } catch (Exception e) {
@@ -952,6 +928,103 @@ public class MainActivity extends Activity {
         getWindow().getDecorView().performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         transmit(code, 2);
         status.setText("Sent POWER ×2.");
+    }
+
+    private void showScannerDialog() {
+        scannerDialog = new Dialog(this);
+        scannerDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(BG);
+        root.setPadding(dp(24), dp(56), dp(24), dp(32));
+
+        TextView kicker = text("SCANNING CODES", 10, MUTED, true);
+        kicker.setLetterSpacing(0.16f);
+        root.addView(kicker);
+        TextView headline = text("Point at the device", 30, TEXT, true);
+        headline.setPadding(0, dp(8), 0, dp(4));
+        root.addView(headline);
+        TextView categoryText = text(current.category + "  \u2022  "
+                + candidates.size() + " codes", 13, MUTED, false);
+        root.addView(categoryText);
+
+        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(1);
+        progress.setProgress(0);
+        progress.setProgressTintList(ColorStateList.valueOf(ACCENT));
+        progress.setProgressBackgroundTintList(ColorStateList.valueOf(0xFF262626));
+        LinearLayout.LayoutParams progressLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(8));
+        progressLp.topMargin = dp(28);
+        root.addView(progress, progressLp);
+
+        scanCount = text("", 13, MUTED, false);
+        scanCount.setPadding(0, dp(12), 0, 0);
+        root.addView(scanCount);
+        scanName = text("", 26, TEXT, true);
+        scanName.setPadding(0, dp(4), 0, dp(10));
+        root.addView(scanName);
+        root.addView(text("Watch the device. When it reacts, tap It worked.",
+                12, MUTED, false));
+
+        root.addView(new Space(this), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        Button worked = highlightButton("It worked", 18);
+        worked.setOnClickListener(v -> saveCandidate(nextCandidate - 1));
+        root.addView(worked, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(70)));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        Button previous = styledButton("Previous", BTN, 15);
+        previous.setOnClickListener(v -> rewindOne());
+        Button skip = styledButton("Skip 5", BTN, 15);
+        skip.setOnClickListener(v -> skipFive());
+        Button stop = styledButton("Stop", 0xFF1A0A0E, 15);
+        stop.setTextColor(RED);
+        stop.setOnClickListener(v -> stopAutoFind("Stopped."));
+        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, dp(54), 1f);
+        p1.setMargins(0, dp(10), dp(4), 0);
+        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, dp(54), 1f);
+        p2.setMargins(dp(4), dp(10), dp(4), 0);
+        LinearLayout.LayoutParams p3 = new LinearLayout.LayoutParams(0, dp(54), 1f);
+        p3.setMargins(dp(4), dp(10), 0, 0);
+        row.addView(previous, p1);
+        row.addView(skip, p2);
+        row.addView(stop, p3);
+        root.addView(row);
+        root.addView(text("Previous replays the last code. Skip 5 jumps ahead.",
+                11, MUTED, false));
+
+        scannerDialog.setContentView(root);
+        scannerDialog.setCanceledOnTouchOutside(false);
+        scannerDialog.setOnCancelListener(d -> stopAutoFind("Stopped."));
+        scannerDialog.show();
+        Window window = scannerDialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+        }
+    }
+
+    private void dismissScanner() {
+        if (scannerDialog != null) {
+            scannerDialog.dismiss();
+            scannerDialog = null;
+        }
+    }
+
+    private void skipFive() {
+        if (!running) return;
+        handler.removeCallbacksAndMessages(null);
+        nextCandidate = Math.min(candidates.size(), nextCandidate + 5);
+        if (nextCandidate >= candidates.size()) {
+            stopAutoFind("Skipped to the end.");
+            return;
+        }
+        tickAutoFind();
     }
 
     // ------------------------------------------------------------- auto find
@@ -989,13 +1062,11 @@ public class MainActivity extends Activity {
             b.setEnabled(false);
             b.setAlpha(0.3f);
         }
-        scanPanel.setVisibility(View.VISIBLE);
+        showScannerDialog();
         progress.setMax(candidates.size());
         progress.setProgress(0);
         scanCount.setText("Scanning 0 / " + candidates.size());
         scanName.setText("Get ready\u2026");
-        status.setText("Point the phone at the device.");
-        scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
         handler.postDelayed(this::tickAutoFind, 800);
     }
 
@@ -1025,7 +1096,10 @@ public class MainActivity extends Activity {
         nextCandidate++;
         transmit(c.power, "Air Conditioner".equals(current.category)
                 && DeviceStore.acPowerRepeat(this));
-        scanPanel.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+        if (scannerDialog != null && scannerDialog.getWindow() != null) {
+            scannerDialog.getWindow().getDecorView()
+                    .performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+        }
         progress.setProgress(nextCandidate);
         scanCount.setText("Scanning " + nextCandidate + " / " + candidates.size());
         scanName.setText(c.remote.brand + " \u2014 " + pretty(c.remote.name));
@@ -1065,7 +1139,7 @@ public class MainActivity extends Activity {
         brandSpinner.setEnabled(true);
         remoteSpinner.setEnabled(true);
         for (Button b : speedButtons) { b.setEnabled(true); b.setAlpha(1f); }
-        scanPanel.setVisibility(View.GONE);
+        dismissScanner();
         saveCurrent(c.remote);
         applyRemote(c.remote, true);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_UP));
@@ -1079,7 +1153,7 @@ public class MainActivity extends Activity {
         brandSpinner.setEnabled(true);
         remoteSpinner.setEnabled(true);
         for (Button b : speedButtons) { b.setEnabled(true); b.setAlpha(1f); }
-        scanPanel.setVisibility(View.GONE);
+        dismissScanner();
         renderControls();
         status.setText(message);
     }
@@ -1111,7 +1185,7 @@ public class MainActivity extends Activity {
         controlsCard.addView(controlsLabel);
 
         if (current.buttons.containsKey("power")) {
-            Button power = gradientButton("POWER", 0xFFFB7185, RED, Color.WHITE, 20);
+            Button power = highlightButton("POWER", 20);
             power.setOnClickListener(v -> send("power"));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
@@ -1489,6 +1563,10 @@ public class MainActivity extends Activity {
             dialog.dismiss();
             startActivity(new Intent(this, ConfigsActivity.class));
         }));
+        panel.addView(toolRow("Diagnostics", "IR status, phone and database info", v -> {
+            dialog.dismiss();
+            showDiagnostics();
+        }));
         panel.addView(toolRow("About", "Sources, limits and how it works", v -> {
             dialog.dismiss();
             showAbout();
@@ -1525,9 +1603,9 @@ public class MainActivity extends Activity {
         chip.setPadding(dp(12), dp(11), dp(12), dp(11));
         boolean active = c.name.equals(category.name);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(active ? 0xFF0B2E3A : 0xFF16213A);
+        bg.setColor(active ? 0xFF141414 : 0xFF0A0A0A);
         bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), active ? ACCENT : 0xFF243149);
+        bg.setStroke(dp(1), active ? ACCENT : 0xFF2A2A2A);
         chip.setBackground(bg);
         TextView name = text(c.name, 13, active ? ACCENT : TEXT, true);
         name.setSingleLine(true);
@@ -1549,9 +1627,9 @@ public class MainActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF16213A);
+        bg.setColor(0xFF0A0A0A);
         bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), 0xFF243149);
+        bg.setStroke(dp(1), 0xFF2A2A2A);
         row.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1693,6 +1771,31 @@ public class MainActivity extends Activity {
         status.setText("Imported “" + name + "”.");
     }
 
+    private void showDiagnostics() {
+        boolean ready = ir != null && ir.hasIrEmitter();
+        int remotes = 0;
+        for (Category c : categories) remotes += c.remoteCount;
+        String currentText = current == null ? "none"
+                : current.category + " • " + current.brand + " — "
+                + pretty(current.name);
+        String message = "IR emitter: " + (ready ? "READY" : "NOT AVAILABLE") + "\n"
+                + "Phone: " + Build.MANUFACTURER + " " + Build.MODEL + "\n"
+                + "Android: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")\n\n"
+                + "Database: " + categories.size() + " categories, " + remotes + " remotes\n"
+                + "Current: " + currentText + "\n\n"
+                + "Tips:\n"
+                + "\u2022 Point the top edge straight at the device receiver.\n"
+                + "\u2022 Try 0.5\u20131 m, then move back.\n"
+                + "\u2022 Enable Force mode for 3x repeats with 25 ms gaps.\n"
+                + "\u2022 ACs often need Repeat aircon POWER; protocols vary by model.\n"
+                + "\u2022 Fans/LEDs that use RF cannot be controlled by a phone.";
+        new AlertDialog.Builder(this)
+                .setTitle("Diagnostics")
+                .setMessage(message)
+                .setPositiveButton("Close", null)
+                .show();
+    }
+
     private void showAbout() {
         new AlertDialog.Builder(this)
                 .setTitle("About")
@@ -1725,6 +1828,7 @@ public class MainActivity extends Activity {
         running = false;
         repeatKey = null;
         handler.removeCallbacksAndMessages(null);
+        dismissScanner();
         irExecutor.shutdownNow();
         super.onDestroy();
     }

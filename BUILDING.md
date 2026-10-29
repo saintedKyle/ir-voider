@@ -35,7 +35,7 @@ Then:
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-The bundled `dist/IRVoider-1.0.apk` is signed with a debug key for sideloading.
+The bundled `dist/IRVoider-1.1.apk` is signed with a debug key for sideloading.
 
 ## Google Play bundle
 
@@ -67,9 +67,9 @@ Flipper protocols to raw timings and copies raw captures.
 
 ## Versioning
 
-- `versionName` is the public release (`1.0`).
+- `versionName` is the public release (`1.1`).
 - `versionCode` is internal and must increase for every update.
-- The Play build uses `versionCode 7`; the GitHub APK release uses code 6.
+- The Play build uses `versionCode 8`.
 
 ## Source map
 
