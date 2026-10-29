@@ -38,6 +38,7 @@ import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -45,6 +46,8 @@ import android.widget.ScrollView;
 import android.widget.Space;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.ViewFlipper;
 
 import org.json.JSONArray;
@@ -166,11 +169,13 @@ public class MainActivity extends Activity {
     private ProgressBar progress;
     private TextView scanCount;
     private TextView scanName;
+    private Button pauseButton;
 
     private Remote current;
     private boolean adjusting;
     private boolean bootstrapping;
     private boolean running;
+    private boolean scanPaused;
     private int nextCandidate;
     private int scanDelayMs = 2000;
     private String repeatKey;
@@ -476,7 +481,14 @@ public class MainActivity extends Activity {
         remoteSpinner = new Spinner(this);
         brandSpinner.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
         remoteSpinner.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
-        scanCard.addView(spinnerRow("Brand", brandSpinner));
+        LinearLayout brandRow = spinnerRow("Brand", brandSpinner);
+        Button searchBrand = styledButton("Search", BTN, 12);
+        searchBrand.setPadding(0, 0, 0, 0);
+        searchBrand.setOnClickListener(v -> showBrandSearch());
+        LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(dp(74), dp(38));
+        searchLp.setMargins(dp(6), 0, 0, 0);
+        brandRow.addView(searchBrand, searchLp);
+        scanCard.addView(brandRow);
         scanCard.addView(spinnerRow("Model", remoteSpinner));
         TextView hint = text(
                 "Point the phone\u2019s top edge at the device. The scan sends one "
@@ -783,6 +795,92 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void showBrandSearch() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(18), dp(18), dp(18), dp(18));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(CARD);
+        bg.setCornerRadius(dp(28));
+        bg.setStroke(dp(1), STROKE);
+        panel.setBackground(bg);
+
+        panel.addView(text("Find a brand", 22, TEXT, true));
+        EditText input = new EditText(this);
+        input.setHint("Search brand");
+        input.setHintTextColor(MUTED);
+        input.setTextColor(TEXT);
+        input.setSingleLine(true);
+        input.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        inputLp.topMargin = dp(10);
+        panel.addView(input, inputLp);
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list);
+        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        listLp.topMargin = dp(8);
+        panel.addView(scroll, listLp);
+
+        Runnable fill = () -> {
+            list.removeAllViews();
+            String q = input.getText().toString().trim().toLowerCase();
+            int shown = 0;
+            for (int i = 0; i < brands.size(); i++) {
+                Brand b = brands.get(i);
+                if (!q.isEmpty() && !b.name.toLowerCase().contains(q)) continue;
+                shown++;
+                boolean active = current != null && b.name.equals(current.brand);
+                TextView row = text(b.name, 15, active ? ACCENT : TEXT, active);
+                row.setPadding(dp(10), dp(13), dp(10), dp(13));
+                GradientDrawable rowBg = new GradientDrawable();
+                rowBg.setColor(active ? 0xFF141414 : 0x00000000);
+                rowBg.setCornerRadius(dp(12));
+                row.setBackground(rowBg);
+                final int index = i;
+                row.setOnClickListener(v -> {
+                    brandSpinner.setSelection(index);
+                    dialog.dismiss();
+                });
+                list.addView(row);
+            }
+            if (shown == 0) {
+                list.addView(text("No matching brand.", 13, MUTED, false));
+            }
+        };
+        input.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
+            @Override public void afterTextChanged(Editable s) { fill.run(); }
+        });
+        fill.run();
+
+        Button cancel = styledButton("Cancel", BTN, 14);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cancelLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        cancelLp.topMargin = dp(8);
+        panel.addView(cancel, cancelLp);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.72f);
+            w.setAttributes(lp);
+        }
+    }
+
     private void updateCategoryLabel() {
         if (categoryLabel != null && category != null) {
             categoryLabel.setText(category.name + " \u2022 " + category.remoteCount
@@ -980,11 +1078,10 @@ public class MainActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         Button previous = styledButton("Previous", BTN, 15);
         previous.setOnClickListener(v -> rewindOne());
+        pauseButton = styledButton("Pause", BTN, 15);
+        pauseButton.setOnClickListener(v -> pauseScan());
         Button skip = styledButton("Skip 5", BTN, 15);
         skip.setOnClickListener(v -> skipFive());
-        Button stop = styledButton("Stop", 0xFF1A0A0E, 15);
-        stop.setTextColor(RED);
-        stop.setOnClickListener(v -> stopAutoFind("Stopped."));
         LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, dp(54), 1f);
         p1.setMargins(0, dp(10), dp(4), 0);
         LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, dp(54), 1f);
@@ -992,10 +1089,17 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams p3 = new LinearLayout.LayoutParams(0, dp(54), 1f);
         p3.setMargins(dp(4), dp(10), 0, 0);
         row.addView(previous, p1);
-        row.addView(skip, p2);
-        row.addView(stop, p3);
+        row.addView(pauseButton, p2);
+        row.addView(skip, p3);
         root.addView(row);
-        root.addView(text("Previous replays the last code. Skip 5 jumps ahead.",
+        Button stop = styledButton("Stop", 0xFF1A0A0E, 15);
+        stop.setTextColor(RED);
+        stop.setOnClickListener(v -> stopAutoFind("Stopped."));
+        LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        stopLp.topMargin = dp(8);
+        root.addView(stop, stopLp);
+        root.addView(text("Pause to stop sending. Previous replays; Skip 5 jumps ahead.",
                 11, MUTED, false));
 
         scannerDialog.setContentView(root);
@@ -1017,8 +1121,18 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void pauseScan() {
+        if (!running) return;
+        scanPaused = !scanPaused;
+        handler.removeCallbacksAndMessages(null);
+        if (pauseButton != null) pauseButton.setText(scanPaused ? "Resume" : "Pause");
+        if (!scanPaused) handler.postDelayed(this::tickAutoFind, 250);
+    }
+
     private void skipFive() {
         if (!running) return;
+        scanPaused = false;
+        if (pauseButton != null) pauseButton.setText("Pause");
         handler.removeCallbacksAndMessages(null);
         nextCandidate = Math.min(candidates.size(), nextCandidate + 5);
         if (nextCandidate >= candidates.size()) {
@@ -1052,7 +1166,26 @@ public class MainActivity extends Activity {
             status.setText("No codes available.");
             return;
         }
+        if (allBrands.isChecked()) {
+            findButton.setEnabled(false);
+            new AlertDialog.Builder(this)
+                    .setTitle("Scan every brand?")
+                    .setMessage("This sends power codes for many brands and can reach "
+                            + "nearby devices. Point directly at your device and keep "
+                            + "the phone close.")
+                    .setPositiveButton("Scan", (dialog, which) -> beginScan())
+                    .setNegativeButton("Cancel", (dialog, which) -> findButton.setEnabled(true))
+                    .setOnCancelListener(dialog -> findButton.setEnabled(true))
+                    .show();
+        } else {
+            beginScan();
+        }
+    }
+
+    private void beginScan() {
+        if (running) return;
         running = true;
+        scanPaused = false;
         nextCandidate = 0;
         findButton.setEnabled(false);
         allBrands.setEnabled(false);
@@ -1100,7 +1233,7 @@ public class MainActivity extends Activity {
     }
 
     private void tickAutoFind() {
-        if (!running) return;
+        if (!running || scanPaused) return;
         if (nextCandidate >= candidates.size()) {
             stopAutoFind("Tried all " + candidates.size() + " codes with no reaction.");
             return;
@@ -1146,6 +1279,7 @@ public class MainActivity extends Activity {
         }
         Candidate c = candidates.get(index);
         running = false;
+        scanPaused = false;
         handler.removeCallbacksAndMessages(null);
         findButton.setEnabled(true);
         allBrands.setEnabled(true);
@@ -1160,6 +1294,7 @@ public class MainActivity extends Activity {
 
     private void stopAutoFind(String message) {
         running = false;
+        scanPaused = false;
         handler.removeCallbacksAndMessages(null);
         findButton.setEnabled(true);
         allBrands.setEnabled(true);

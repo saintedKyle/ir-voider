@@ -7,11 +7,11 @@
 A clean, offline IR remote for **Android phones with an IR blaster**. No ads, no
 account, no internet permission — just your phone's IR LED.
 
-**Download:** [IRVoider-1.2.apk](dist/IRVoider-1.2.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md) · **Google Play:** [release guide](PLAY_STORE.md) (pending)
+**Download:** [IRVoider-1.3.apk](dist/IRVoider-1.3.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md) · **Google Play:** [release guide](PLAY_STORE.md) (pending)
 
 ## Install on your phone
 
-1. Download `IRVoider-1.2.apk` to the phone (browser, USB, or cloud drive).
+1. Download `IRVoider-1.3.apk` to the phone (browser, USB, or cloud drive).
 2. Tap the APK. Android asks to allow installs from this source — allow it.
 3. Install **IR Voider** and open it.
 
@@ -40,6 +40,8 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
   Numbers, Colors, Extras). Power stays pinned above the pages.
 - Expanded keys: digits, color buttons, info/guide, media transport, subtitle,
   audio, aspect and more.
+- Searchable brand list, Pause/Resume scanning, and a confirmation before an
+  all-brand scan (so you don't hit nearby devices).
 - Auto-find with duplicate removal and "previous code" rewind.
 - Saved devices with custom names and types.
 - IR boost for volume/channel/temperature, plus **Boost all** for every button

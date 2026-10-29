@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3 — 2026-10-29
+
+- Searchable brand picker for the expanded model list.
+- Scanner Pause/Resume.
+- Confirmation before an all-brand scan to avoid controlling nearby devices.
+- Scanner keeps trying AC Power and Power Off codes.
+- Model database expanded to 39 categories, 1,502 remotes, 17,789 codes.
+
 ## 1.2 — 2026-10-29
 
 - Expanded to **39 categories · 1,502 remotes · 17,789 codes**.
