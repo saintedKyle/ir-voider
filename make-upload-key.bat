@@ -11,7 +11,7 @@ if not exist keys mkdir keys
 keytool -genkeypair -v -keystore keys\irvoider-upload.jks -alias %ALIAS% -keyalg RSA -keysize 4096 -validity 10000 -storepass %STOREPASS% -keypass %KEYPASS% -dname "CN=IR Voider, O=poging kyle, C=US"
 if errorlevel 1 exit /b 1
 (
-echo storeFile=../keys/irvoider-upload.jks
+echo storeFile=keys/irvoider-upload.jks
 echo storePassword=%STOREPASS%
 echo keyAlias=%ALIAS%
 echo keyPassword=%KEYPASS%
