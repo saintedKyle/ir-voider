@@ -1,0 +1,30 @@
+# Gradle / Android
+.gradle/
+build/
+app/build/
+captures/
+local.properties
+*.iml
+.idea/
+
+# Local development toolchain and raw data
+toolchain/
+data/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Signing material — never commit
+*.jks
+*.keystore
+
+# Generated APK in the project root (dist/ release APK is kept)
+/IRVoider.apk
+
+# Keep the Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Python
+__pycache__/
+*.pyc
