@@ -385,6 +385,32 @@ def draw_banner():
     return img
 
 
+def draw_social():
+    w, h = 1280, 640
+    img = Image.new("RGB", (w, h), BG_TOP)
+    img.paste(vgrad((w, h), BG_TOP, BG_MID, BG_BOT), (0, 0))
+    glow = Image.new("RGB", (w, h), (0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse([-140, -160, 520, 460], fill=(8, 70, 90))
+    gd.ellipse([820, 120, 1440, 760], fill=(44, 36, 110))
+    glow = glow.filter(ImageFilter.GaussianBlur(120))
+    img = Image.blend(img, Image.composite(glow, img, glow.convert("L")), 0.35)
+
+    icon = logo(138, 38)
+    img.paste(icon, (84, 250), icon)
+    d = ImageDraw.Draw(img)
+    d.text((258, 196), "IR Voider", font=font(F_BLACK, 92), fill=TEXT)
+    d.text((264, 312), "The offline IR remote for Android phones.",
+           font=font(F_REG, 30), fill=MUTED)
+    d.text((264, 362), "33 device categories  ·  1,421 remotes  ·  no internet",
+           font=font(F_SEMI, 24), fill=ACCENT)
+    d.text((264, 406), "Phone only  ·  Android 6.0+  ·  built-in IR blaster",
+           font=font(F_REG, 22), fill=MUTED)
+    d.text((1196, 582), "made by poging kyle", font=font(F_REG, 20),
+           fill=(100, 116, 139), anchor="ra")
+    return img
+
+
 def phone_frame(screen):
     sw, sh = 720, 1600
     scr = screen.resize((sw, sh), Image.LANCZOS)
@@ -429,12 +455,14 @@ def main():
     devices = draw_devices()
     banner = draw_banner()
     composite = draw_composite(home, more, devices)
+    social = draw_social()
     home.save("docs/images/home.png")
     more.save("docs/images/more.png")
     devices.save("docs/images/devices.png")
     banner.save("docs/images/banner.png")
     composite.save("docs/images/preview.png")
-    print("Wrote docs/images/{banner,home,more,devices,preview}.png")
+    social.save("docs/images/social-preview.png")
+    print("Wrote docs/images/{banner,home,more,devices,preview,social-preview}.png")
 
 
 if __name__ == "__main__":
