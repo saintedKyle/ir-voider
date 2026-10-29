@@ -5,7 +5,6 @@ Status: **signed AAB ready; Play Console account, screenshots and closed testing
 Ready assets:
 
 - Signed bundle: `dist/IRVoider-1.0-play.aab` (versionCode 7, target API 36)
-- Test APK: `dist/IRVoider-1.0-play-test.apk` (debug-signed, same UI/build)
 - Icon: `docs/play/icon-512.png`
 - Feature graphic: `docs/play/feature-graphic.png`
 - Privacy URL: https://saintedkyle.github.io/ir-voider/privacy.html
@@ -135,7 +134,7 @@ Privacy: https://saintedkyle.github.io/ir-voider/privacy.html
 | Phone screenshots | 2–8, actual app screenshots, 16:9 or 9:16 | **need real device screenshots** |
 
 Do not use the illustrative README previews as Play screenshots. Install
-`dist/IRVoider-1.0-play-test.apk` on the Redmi Note 10 5G, open the Remote, More
+`dist/IRVoider-1.0.apk` on the Redmi Note 10 5G, open the Remote, More
 and Devices screens, and capture 2–4 screenshots. Send them to the maintainer to
 add to this folder.
 
