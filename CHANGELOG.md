@@ -6,6 +6,10 @@
 - Edge-to-edge window insets on all screens.
 - Release AAB signing setup and Play Store release guide.
 - GitHub Pages privacy/terms pages.
+- Swipeable control pages (Basics, Navigation, Media, Numbers, Colors, Extras).
+- Expanded button set: digits, colors, info/guide, media transport, subtitle,
+  audio, aspect, apps and more.
+- "Boost all" repeat option for every button except POWER.
 
 
 ## 1.0 — 2026-10-29

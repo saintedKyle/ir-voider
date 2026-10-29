@@ -35,11 +35,15 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
 
 ## What it does
 
-- **33 categories · 1,421 remotes · 10,180 IR codes** from Flipper-IRDB.
-- Dynamic buttons per device (TV, AC, projector, fan, LED, audio, etc.).
+- **33 categories · 1,451 remotes · 16,841 IR codes** from Flipper-IRDB.
+- Dynamic buttons per device with **swipeable pages** (Basics, Navigation, Media,
+  Numbers, Colors, Extras). Power stays pinned above the pages.
+- Expanded keys: digits, color buttons, info/guide, media transport, subtitle,
+  audio, aspect and more.
 - Auto-find with duplicate removal and "previous code" rewind.
 - Saved devices with custom names and types.
-- IR boost for volume/channel/temperature repeats.
+- IR boost for volume/channel/temperature, plus **Boost all** for every button
+  except POWER.
 - Import raw `.ir` captures as "Learned" remotes.
 - **No internet permission.** Works in airplane mode.
 

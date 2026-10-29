@@ -56,10 +56,14 @@ public class LearnActivity extends Activity {
 
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
-            "input", "up", "down", "left", "right", "ok", "back", "home", "menu",
-            "play_pause", "temp_up", "temp_down", "mode", "fan", "swing", "speed",
+            "input", "exit", "info", "guide", "up", "down", "left", "right", "ok",
+            "back", "home", "menu", "play_pause", "stop", "rewind", "forward",
+            "prev", "next", "record", "subtitle", "audio", "aspect", "last", "fav",
+            "apps", "netflix", "temp_up", "temp_down", "mode", "fan", "swing", "speed",
             "light", "timer", "sleep", "brightness_up", "brightness_down", "color",
-            "zoom_in", "zoom_out"
+            "red", "green", "yellow", "blue", "zoom_in", "zoom_out",
+            "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
+            "num_8", "num_9", "dash", "dot"
     };
 
     private static final Map<String, String> ALIASES = new LinkedHashMap<>();
@@ -77,9 +81,15 @@ public class LearnActivity extends Activity {
                 {"input", "input"}, {"source", "input"},
                 {"up", "up"}, {"down", "down"}, {"left", "left"}, {"right", "right"},
                 {"ok", "ok"}, {"enter", "ok"}, {"select", "ok"},
-                {"back", "back"}, {"return", "back"}, {"exit", "back"},
-                {"home", "home"}, {"menu", "menu"}, {"play", "play_pause"},
-                {"pause", "play_pause"}, {"play_pause", "play_pause"},
+                {"back", "back"}, {"return", "back"}, {"exit", "exit"},
+                {"home", "home"}, {"menu", "menu"}, {"settings", "menu"},
+                {"info", "info"}, {"guide", "guide"}, {"epg", "guide"},
+                {"play", "play_pause"}, {"pause", "play_pause"}, {"play_pause", "play_pause"},
+                {"stop", "stop"}, {"rewind", "rewind"}, {"fast_forward", "forward"},
+                {"forward", "forward"}, {"prev", "prev"}, {"next", "next"},
+                {"record", "record"}, {"subtitle", "subtitle"}, {"audio", "audio"},
+                {"aspect", "aspect"}, {"last", "last"}, {"fav", "fav"},
+                {"apps", "apps"}, {"netflix", "netflix"},
                 {"temp_up", "temp_up"}, {"temp_plus", "temp_up"}, {"temp+", "temp_up"},
                 {"temp_down", "temp_down"}, {"temp_minus", "temp_down"},
                 {"temp-", "temp_down"}, {"mode", "mode"}, {"fan", "fan"},
@@ -88,9 +98,15 @@ public class LearnActivity extends Activity {
                 {"light", "light"}, {"lamp", "light"}, {"timer", "timer"},
                 {"sleep", "sleep"}, {"brightness_up", "brightness_up"},
                 {"brightness_down", "brightness_down"}, {"color", "color"},
-                {"zoom_in", "zoom_in"}, {"zoom_out", "zoom_out"}
+                {"red", "red"}, {"green", "green"}, {"yellow", "yellow"}, {"blue", "blue"},
+                {"zoom_in", "zoom_in"}, {"zoom_out", "zoom_out"},
+                {"dash", "dash"}, {"dot", "dot"}
         };
         for (String[] p : pairs) ALIASES.put(p[0], p[1]);
+        for (int d = 0; d < 10; d++) {
+            ALIASES.put(String.valueOf(d), "num_" + d);
+            ALIASES.put("num_" + d, "num_" + d);
+        }
     }
 
     private EditText nameInput;

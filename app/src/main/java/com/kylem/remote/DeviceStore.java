@@ -142,6 +142,14 @@ public final class DeviceStore {
         prefs(c).edit().putInt("repeats", Math.max(1, Math.min(3, value))).apply();
     }
 
+    public static boolean boostAll(Context c) {
+        return prefs(c).getBoolean("boostAll", false);
+    }
+
+    public static void setBoostAll(Context c, boolean value) {
+        prefs(c).edit().putBoolean("boostAll", value).apply();
+    }
+
     public static int scanDelayMs(Context c) {
         return prefs(c).getInt("scanDelay", 2000);
     }

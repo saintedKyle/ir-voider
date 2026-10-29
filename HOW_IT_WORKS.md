@@ -47,11 +47,19 @@ The app loads the database once at startup. No network request is made.
 
 Power is a toggle on most devices, so the same code turns the device on and off.
 
+## Swipeable control pages
+
+Controls are grouped into pages: **Basics**, **Navigation**, **Media**,
+**Numbers**, **Colors** and **Extras**. Swipe left/right or use the ‹ › buttons.
+POWER stays pinned above the pages. Only buttons present in that remote are shown.
+
 ## IR boost
 
 Some buttons (volume, channel, temperature, brightness) are sent two or three
-times with a short gap. This improves reliability at longer distances. Power,
-OK and navigation are sent once so they cannot double-fire.
+times with a short gap. **Boost all** repeats every button except POWER; turn it
+on in IR & scan settings if a device is unreliable. It can double-trigger
+toggles or OK on sensitive devices. Power, OK and navigation are sent once by
+default so they cannot double-fire.
 
 **Software cannot amplify the IR LED.** Android exposes frequency and pattern,
 not current or power. Real range improvements require an external IR blaster.

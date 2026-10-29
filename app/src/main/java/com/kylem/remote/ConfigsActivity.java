@@ -23,6 +23,7 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -271,6 +272,22 @@ public class ConfigsActivity extends Activity {
             }
         });
         settings.addView(row("Scan speed", speed));
+
+        CheckBox boostAll = new CheckBox(this);
+        boostAll.setText("Boost all buttons (except POWER)");
+        boostAll.setTextColor(TEXT);
+        boostAll.setButtonTintList(ColorStateList.valueOf(ACCENT));
+        boostAll.setChecked(DeviceStore.boostAll(this));
+        boostAll.setOnCheckedChangeListener((buttonView, isChecked) ->
+                DeviceStore.setBoostAll(ConfigsActivity.this, isChecked));
+        LinearLayout.LayoutParams boostLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        boostLp.topMargin = dp(6);
+        settings.addView(boostAll, boostLp);
+        settings.addView(text(
+                "Repeats every button except POWER. This can double-trigger "
+                        + "toggles or OK on sensitive devices; turn it off if that happens.",
+                11, MUTED, false));
         addCard(root, settings);
 
         // Learn mode honesty card

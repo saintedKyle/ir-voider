@@ -26,9 +26,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.TranslateAnimation;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -42,6 +45,7 @@ import android.widget.ScrollView;
 import android.widget.Space;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.ViewFlipper;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -75,18 +79,33 @@ public class MainActivity extends Activity {
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
             "input", "up", "down", "left", "right", "ok", "back", "home", "menu",
-            "play_pause", "temp_up", "temp_down", "mode", "fan", "swing", "speed",
-            "light", "timer", "sleep", "brightness_up", "brightness_down", "color",
-            "zoom_in", "zoom_out"
+            "exit", "info", "guide", "play_pause", "stop", "rewind", "forward",
+            "prev", "next", "record", "temp_up", "temp_down", "mode", "fan", "swing",
+            "speed", "light", "timer", "sleep", "brightness_up", "brightness_down",
+            "color", "red", "green", "yellow", "blue", "zoom_in", "zoom_out",
+            "subtitle", "audio", "aspect", "last", "fav", "apps", "netflix",
+            "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
+            "num_8", "num_9", "dash", "dot"
     };
     private static final String[] BUTTON_LABELS = {
-            "POWER", "Power Off", "Vol +", "Vol \u2212", "Mute", "CH +", "CH \u2212",
-            "Input", "\u25B2", "\u25BC", "\u25C0", "\u25B6", "OK", "Back", "Home",
-            "Menu", "Play/Pause", "Temp +", "Temp \u2212", "Mode", "Fan", "Swing",
-            "Speed", "Light", "Timer", "Sleep", "Bright +", "Bright \u2212", "Color",
-            "Zoom +", "Zoom \u2212"
+            "POWER", "Power Off", "Vol +", "Vol −", "Mute", "CH +", "CH −",
+            "Input", "▲", "▼", "◀", "▶", "OK", "Back", "Home",
+            "Menu", "Exit", "Info", "Guide", "Play/Pause", "Stop", "Rewind", "Forward",
+            "Prev", "Next", "Record", "Temp +", "Temp −", "Mode", "Fan", "Swing",
+            "Speed", "Light", "Timer", "Sleep", "Bright +", "Bright −", "Color",
+            "Red", "Green", "Yellow", "Blue", "Zoom +", "Zoom −", "Subtitle",
+            "Audio", "Aspect", "Last", "Fav", "Apps", "Netflix", "0", "1", "2", "3",
+            "4", "5", "6", "7", "8", "9", "Dash", "Dot"
     };
     private static final String[] DPAD = {"up", "down", "left", "right", "ok"};
+    private static final String[] BASIC_KEYS = {"vol_up", "vol_down", "mute", "ch_up", "ch_down", "input"};
+    private static final String[] NAV_EXTRA = {"back", "home", "menu", "exit", "info", "guide"};
+    private static final String[] MEDIA_KEYS = {"play_pause", "stop", "rewind", "forward",
+            "prev", "next", "record", "subtitle", "audio", "aspect", "last", "fav",
+            "apps", "netflix"};
+    private static final String[] NUMBER_KEYS = {"num_1", "num_2", "num_3", "num_4",
+            "num_5", "num_6", "num_7", "num_8", "num_9", "num_0", "dash", "dot"};
+    private static final String[] COLOR_KEYS = {"red", "green", "yellow", "blue"};
     private static final int REQ_LEARN = 77;
 
     static class Code {
@@ -130,6 +149,9 @@ public class MainActivity extends Activity {
 
     private ScrollView scrollView;
     private LinearLayout controlsCard;
+    private SwipeFlipper controlsPager;
+    private TextView pageDots;
+    private int pageCount;
     private Spinner brandSpinner;
     private Spinner remoteSpinner;
     private final Button[] speedButtons = new Button[3];
@@ -878,7 +900,9 @@ public class MainActivity extends Activity {
             status.setText("This remote has no \u201c" + labelFor(key) + "\u201d code.");
             return;
         }
-        transmit(code, isRepeatable(key));
+        boolean repeat = !"power".equals(key)
+                && (isRepeatable(key) || DeviceStore.boostAll(this));
+        transmit(code, repeat);
         status.setText("Sent " + labelFor(key) + ".");
     }
 
@@ -1039,9 +1063,22 @@ public class MainActivity extends Activity {
 
     // --------------------------------------------------------------- controls
 
+    static class Page {
+        String title;
+        List<String> keys;
+
+        Page(String title, List<String> keys) {
+            this.title = title;
+            this.keys = keys;
+        }
+    }
+
     private void renderControls() {
         controlsCard.removeAllViews();
         buttons.clear();
+        controlsPager = null;
+        pageDots = null;
+        pageCount = 0;
         if (current == null) {
             controlsCard.addView(text("Select a remote to begin.", 13, MUTED, false));
             return;
@@ -1049,6 +1086,7 @@ public class MainActivity extends Activity {
         TextView controlsLabel = text("CONTROLS", 10, MUTED, true);
         controlsLabel.setLetterSpacing(0.14f);
         controlsCard.addView(controlsLabel);
+
         if (current.buttons.containsKey("power")) {
             Button power = gradientButton("POWER", 0xFFFB7185, RED, Color.WHITE, 20);
             power.setOnClickListener(v -> send("power"));
@@ -1059,32 +1097,57 @@ public class MainActivity extends Activity {
             buttons.put("power", power);
         }
 
-        boolean hasDpad = true;
-        for (String key : DPAD) {
-            if (!current.buttons.containsKey(key)) hasDpad = false;
-        }
-        if (hasDpad) {
-            addRow(controlsCard, null, "up", null);
-            addRow(controlsCard, "left", "ok", "right");
-            addRow(controlsCard, null, "down", null);
+        List<Page> pages = buildPages();
+        pageCount = pages.size();
+        if (pageCount == 0) {
+            String message = "Air Conditioner".equals(current.category)
+                    ? "Built-in aircon profiles expose Power only. Temperature, mode and "
+                    + "fan need a protocol-specific profile or an imported raw remote."
+                    : "No mapped buttons for this remote.";
+            controlsCard.addView(text(message, 12, MUTED, false));
+            return;
         }
 
-        List<String> rest = new ArrayList<>();
-        for (String key : BUTTON_ORDER) {
-            if (key.equals("power")) continue;
-            if (hasDpad && isDpad(key)) continue;
-            if (current.buttons.containsKey(key)) rest.add(key);
+        if (pageCount == 1) {
+            LinearLayout page = new LinearLayout(this);
+            page.setOrientation(LinearLayout.VERTICAL);
+            addPageView(page, pages.get(0));
+            controlsCard.addView(page);
+        } else {
+            controlsPager = new SwipeFlipper(this);
+            for (Page page : pages) {
+                LinearLayout view = new LinearLayout(this);
+                view.setOrientation(LinearLayout.VERTICAL);
+                addPageView(view, page);
+                controlsPager.addView(view, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+            controlsPager.detector = new GestureDetector(this,
+                    new GestureDetector.SimpleOnGestureListener() {
+                        @Override
+                        public boolean onFling(MotionEvent e1, MotionEvent e2,
+                                               float velocityX, float velocityY) {
+                            if (e1 == null || e2 == null) return false;
+                            float dx = e2.getX() - e1.getX();
+                            if (Math.abs(dx) > 110 && Math.abs(velocityX) > 100) {
+                                goPage(dx < 0 ? 1 : -1);
+                                return true;
+                            }
+                            return false;
+                        }
+                    });
+            controlsCard.addView(controlsPager, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            addPageIndicator();
+            animatePager(true);
+            controlsPager.setDisplayedChild(0);
+            updatePageDots();
+            controlsCard.addView(text("Swipe left or right for more buttons.",
+                    11, MUTED, false));
         }
-        for (int i = 0; i < rest.size(); i += 3) {
-            String a = rest.get(i);
-            String b = i + 1 < rest.size() ? rest.get(i + 1) : null;
-            String c = i + 2 < rest.size() ? rest.get(i + 2) : null;
-            addRow(controlsCard, a, b, c);
-        }
-        if (rest.isEmpty() && !hasDpad && !current.buttons.containsKey("power")) {
-            controlsCard.addView(text("No mapped buttons for this remote.",
-                    12, MUTED, false));
-        }
+
         if ("Air Conditioner".equals(current.category)) {
             controlsCard.addView(text(
                     "Built-in aircon codes expose Power only. Full state frames "
@@ -1092,17 +1155,220 @@ public class MainActivity extends Activity {
                             + "imported/learned remotes can include their own buttons.",
                     11, MUTED, false));
         }
-        boolean repeats = false;
-        for (String key : rest) if (isRepeatable(key)) repeats = true;
-        if (repeats) {
+        if (hasRepeatable(pages)) {
             controlsCard.addView(text("Hold Vol / CH / Temp / Bright to repeat.",
                     11, MUTED, false));
         }
     }
 
+    private List<Page> buildPages() {
+        List<Page> pages = new ArrayList<>();
+        java.util.HashSet<String> used = new java.util.HashSet<>();
+
+        List<String> basics = new ArrayList<>();
+        for (String key : categoryPrimary()) {
+            if (current.buttons.containsKey(key) && used.add(key)) basics.add(key);
+        }
+        for (String key : BASIC_KEYS) {
+            if (current.buttons.containsKey(key) && used.add(key)) basics.add(key);
+        }
+        addPage(pages, "BASICS", basics);
+
+        List<String> nav = new ArrayList<>();
+        boolean allDpad = true;
+        for (String key : DPAD) if (!current.buttons.containsKey(key)) allDpad = false;
+        if (allDpad) {
+            for (String key : DPAD) {
+                if (used.add(key)) nav.add(key);
+            }
+        }
+        for (String key : NAV_EXTRA) {
+            if (current.buttons.containsKey(key) && used.add(key)) nav.add(key);
+        }
+        addPage(pages, "NAVIGATION", nav);
+
+        List<String> media = new ArrayList<>();
+        for (String key : MEDIA_KEYS) {
+            if (current.buttons.containsKey(key) && used.add(key)) media.add(key);
+        }
+        addPage(pages, "MEDIA", media);
+
+        List<String> numbers = new ArrayList<>();
+        for (String key : NUMBER_KEYS) {
+            if (current.buttons.containsKey(key) && used.add(key)) numbers.add(key);
+        }
+        addPage(pages, "NUMBERS", numbers);
+
+        List<String> colors = new ArrayList<>();
+        for (String key : COLOR_KEYS) {
+            if (current.buttons.containsKey(key) && used.add(key)) colors.add(key);
+        }
+        addPage(pages, "COLORS", colors);
+
+        List<String> extras = new ArrayList<>();
+        for (String key : BUTTON_ORDER) {
+            if (key.equals("power")) continue;
+            if (current.buttons.containsKey(key) && used.add(key)) extras.add(key);
+        }
+        addPage(pages, "EXTRAS", extras);
+        return pages;
+    }
+
+    private void addPage(List<Page> pages, String title, List<String> keys) {
+        if (keys.isEmpty()) return;
+        int chunks = (keys.size() + 11) / 12;
+        for (int c = 0; c < chunks; c++) {
+            int from = c * 12;
+            int to = Math.min(keys.size(), from + 12);
+            String pageTitle = chunks == 1 ? title : title + " " + (c + 1) + "/" + chunks;
+            pages.add(new Page(pageTitle, new ArrayList<>(keys.subList(from, to))));
+        }
+    }
+
+    private String[] categoryPrimary() {
+        String name = current.category;
+        if ("Air Conditioner".equals(name)) {
+            return new String[]{"temp_up", "temp_down", "mode", "fan", "swing", "light", "timer", "sleep"};
+        }
+        if ("Fan".equals(name)) {
+            return new String[]{"speed", "swing", "light", "timer", "mode", "fan"};
+        }
+        if ("LED Light".equals(name)) {
+            return new String[]{"brightness_up", "brightness_down", "color", "mode",
+                    "speed", "light", "timer"};
+        }
+        if ("Heater".equals(name) || "Fireplace".equals(name)) {
+            return new String[]{"temp_up", "temp_down", "mode", "swing", "light", "timer"};
+        }
+        if ("Humidifier".equals(name) || "Air Purifier".equals(name)) {
+            return new String[]{"speed", "mode", "light", "timer"};
+        }
+        if ("Projector".equals(name)) {
+            return new String[]{"vol_up", "vol_down", "mute", "input", "menu", "zoom_in", "zoom_out"};
+        }
+        if ("Soundbar".equals(name) || "Audio / Receiver".equals(name)
+                || "Speaker".equals(name)) {
+            return new String[]{"vol_up", "vol_down", "mute", "input", "play_pause"};
+        }
+        return new String[]{"vol_up", "vol_down", "mute", "ch_up", "ch_down", "input"};
+    }
+
+    private void addPageView(LinearLayout parent, Page page) {
+        TextView title = text(page.title, 10, ACCENT, true);
+        title.setLetterSpacing(0.12f);
+        title.setPadding(0, dp(6), 0, dp(4));
+        parent.addView(title);
+        boolean isNav = page.title.startsWith("NAVIGATION");
+        List<String> rest = new ArrayList<>();
+        if (isNav) {
+            boolean hasDpad = true;
+            for (String key : DPAD) if (!page.keys.contains(key)) hasDpad = false;
+            if (hasDpad) {
+                addRow(parent, null, "up", null);
+                addRow(parent, "left", "ok", "right");
+                addRow(parent, null, "down", null);
+                for (String key : page.keys) if (!isDpad(key)) rest.add(key);
+            } else {
+                rest.addAll(page.keys);
+            }
+        } else {
+            rest.addAll(page.keys);
+        }
+        addGrid(parent, rest);
+    }
+
+    private void addGrid(LinearLayout parent, List<String> keys) {
+        for (int i = 0; i < keys.size(); i += 3) {
+            String a = keys.get(i);
+            String b = i + 1 < keys.size() ? keys.get(i + 1) : null;
+            String c = i + 2 < keys.size() ? keys.get(i + 2) : null;
+            addRow(parent, a, b, c);
+        }
+    }
+
+    private boolean hasRepeatable(List<Page> pages) {
+        for (Page page : pages) {
+            for (String key : page.keys) if (isRepeatable(key)) return true;
+        }
+        return false;
+    }
+
+    private void addPageIndicator() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(6), 0, dp(2));
+        Button prev = styledButton("\u2039", BTN, 18);
+        prev.setOnClickListener(v -> goPage(-1));
+        Button next = styledButton("\u203A", BTN, 18);
+        next.setOnClickListener(v -> goPage(1));
+        pageDots = text("", 11, ACCENT, true);
+        pageDots.setGravity(Gravity.CENTER);
+        row.addView(prev, new LinearLayout.LayoutParams(dp(42), dp(38)));
+        row.addView(pageDots, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(next, new LinearLayout.LayoutParams(dp(42), dp(38)));
+        controlsCard.addView(row);
+        buttons.put("__page_prev", prev);
+        buttons.put("__page_next", next);
+    }
+
+    private void goPage(int delta) {
+        if (controlsPager == null || pageCount < 2) return;
+        int currentPage = controlsPager.getDisplayedChild();
+        int next = (currentPage + delta + pageCount) % pageCount;
+        animatePager(delta > 0);
+        controlsPager.setDisplayedChild(next);
+        updatePageDots();
+    }
+
+    private void animatePager(boolean forward) {
+        if (controlsPager == null) return;
+        Animation in = new TranslateAnimation(
+                Animation.RELATIVE_TO_PARENT, forward ? 1f : -1f,
+                Animation.RELATIVE_TO_PARENT, 0f,
+                Animation.RELATIVE_TO_PARENT, 0f,
+                Animation.RELATIVE_TO_PARENT, 0f);
+        in.setDuration(220);
+        Animation out = new TranslateAnimation(
+                Animation.RELATIVE_TO_PARENT, 0f,
+                Animation.RELATIVE_TO_PARENT, forward ? -1f : 1f,
+                Animation.RELATIVE_TO_PARENT, 0f,
+                Animation.RELATIVE_TO_PARENT, 0f);
+        out.setDuration(220);
+        controlsPager.setInAnimation(in);
+        controlsPager.setOutAnimation(out);
+    }
+
+    private void updatePageDots() {
+        if (pageDots == null || controlsPager == null) return;
+        int currentPage = controlsPager.getDisplayedChild();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < pageCount; i++) {
+            sb.append(i == currentPage ? "\u25CF" : "\u25CB");
+            if (i < pageCount - 1) sb.append("  ");
+        }
+        sb.append("   ").append(currentPage + 1).append("/").append(pageCount);
+        pageDots.setText(sb.toString());
+    }
+
     private boolean isDpad(String key) {
         for (String d : DPAD) if (d.equals(key)) return true;
         return false;
+    }
+
+    private static class SwipeFlipper extends ViewFlipper {
+        GestureDetector detector;
+
+        SwipeFlipper(Context context) {
+            super(context);
+        }
+
+        @Override
+        public boolean dispatchTouchEvent(MotionEvent ev) {
+            if (detector != null) detector.onTouchEvent(ev);
+            return super.dispatchTouchEvent(ev);
+        }
     }
 
     // ------------------------------------------------------------------ more
