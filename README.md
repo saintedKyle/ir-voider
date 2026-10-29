@@ -57,7 +57,7 @@ more buttons for your own AC.
   <img src="docs/images/preview.png" alt="IR Voider UI preview: Remote, More and Devices screens" width="100%">
 </p>
 
-<p align="center"><em>Illustrative UI preview of v1.0, generated from the app's layout and palette.</em></p>
+<p align="center"><em>Illustrative UI preview. The current build groups buttons into swipeable pages (Basics, Navigation, Media, Numbers, Colors, Extras).</em></p>
 
 <details>
 <summary>Individual screens</summary>

@@ -31,8 +31,8 @@ The built-in database is generated from
 Database at release 1.0:
 
 - 33 categories
-- 1,421 remotes
-- 10,180 button patterns
+- 1,451 remotes
+- 16,841 button patterns
 
 The app loads the database once at startup. No network request is made.
 

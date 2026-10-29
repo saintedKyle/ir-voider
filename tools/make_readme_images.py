@@ -376,7 +376,7 @@ def draw_banner():
     d.text((292, 170), "IR Voider", font=font(F_BLACK, 104), fill=TEXT)
     d.text((300, 292), "The offline IR remote for Android phones.",
            font=font(F_REG, 34), fill=MUTED)
-    d.text((300, 348), "33 device categories  ·  1,421 remotes  ·  no internet",
+    d.text((300, 348), "33 device categories  ·  1,451 remotes  ·  no internet",
            font=font(F_SEMI, 27), fill=ACCENT)
     d.text((300, 400), "Phone only  ·  Android 6.0+  ·  built-in IR blaster required",
            font=font(F_REG, 24), fill=MUTED)
@@ -402,7 +402,7 @@ def draw_social():
     d.text((258, 196), "IR Voider", font=font(F_BLACK, 92), fill=TEXT)
     d.text((264, 312), "The offline IR remote for Android phones.",
            font=font(F_REG, 30), fill=MUTED)
-    d.text((264, 362), "33 device categories  ·  1,421 remotes  ·  no internet",
+    d.text((264, 362), "33 device categories  ·  1,451 remotes  ·  no internet",
            font=font(F_SEMI, 24), fill=ACCENT)
     d.text((264, 406), "Phone only  ·  Android 6.0+  ·  built-in IR blaster",
            font=font(F_REG, 22), fill=MUTED)
@@ -427,7 +427,7 @@ def draw_feature():
     d.text((204, 150), "IR Voider", font=font(F_BLACK, 72), fill=TEXT)
     d.text((208, 250), "The offline IR remote for Android phones.",
            font=font(F_REG, 24), fill=MUTED)
-    d.text((208, 292), "33 device categories  ·  1,421 remotes  ·  no internet",
+    d.text((208, 292), "33 device categories  ·  1,451 remotes  ·  no internet",
            font=font(F_SEMI, 19), fill=ACCENT)
     d.text((208, 330), "Phone only  ·  Android 6.0+  ·  built-in IR blaster",
            font=font(F_REG, 17), fill=MUTED)

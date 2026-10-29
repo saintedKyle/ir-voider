@@ -92,7 +92,7 @@ TV, air conditioner, projector, fan, LED lighting, soundbar, audio receiver,
 speaker, streaming box, cable/satellite box, DVD/Blu-ray, VCR, camera, air
 purifier, heater, humidifier, vacuum, monitor and more.
 
-1,421 REMOTES · 10,180 IR CODES
+1,451 REMOTES · 16,841 IR CODES
 Codes come from the public Flipper-IRDB database and are bundled offline.
 
 FIND A WORKING CODE

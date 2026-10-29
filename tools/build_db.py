@@ -282,10 +282,20 @@ BUTTON_ALIASES = {
     "up": "up", "arrow_up": "up", "down": "down", "arrow_down": "down",
     "left": "left", "arrow_left": "left", "right": "right", "arrow_right": "right",
     "ok": "ok", "enter": "ok", "select": "ok", "center": "ok",
-    "back": "back", "return": "back", "exit": "back",
+    "back": "back", "return": "back", "exit": "exit", "close": "exit",
     "home": "home", "smart_hub": "home", "menu_home": "home",
     "menu": "menu", "settings": "menu",
+    "info": "info", "information": "info", "guide": "guide", "epg": "guide",
     "play": "play_pause", "pause": "play_pause", "play_pause": "play_pause",
+    "stop": "stop", "rewind": "rewind", "rw": "rewind",
+    "fast_forward": "forward", "ff": "forward", "forward": "forward",
+    "prev": "prev", "previous": "prev", "next": "next", "record": "record",
+    "subtitle": "subtitle", "subtitles": "subtitle", "cc": "subtitle",
+    "audio": "audio", "audio_track": "audio", "language": "audio",
+    "aspect": "aspect", "ratio": "aspect", "picture_size": "aspect",
+    "last": "last", "last_channel": "last", "channel_return": "last",
+    "fav": "fav", "favorite": "fav", "favourite": "fav",
+    "apps": "apps", "netflix": "netflix",
     "temp_up": "temp_up", "temp_plus": "temp_up", "temp+": "temp_up",
     "temp_increase": "temp_up", "increase_temp": "temp_up",
     "temp_down": "temp_down", "temp_minus": "temp_down", "temp-": "temp_down",
@@ -303,15 +313,27 @@ BUTTON_ALIASES = {
     "brightness_down": "brightness_down", "bright_down": "brightness_down",
     "brightness-": "brightness_down",
     "color": "color", "colour": "color", "color_temp": "color",
+    "red": "red", "green": "green", "yellow": "yellow", "blue": "blue",
     "zoom_in": "zoom_in", "zoom+": "zoom_in",
     "zoom_out": "zoom_out", "zoom-": "zoom_out",
+    "dash": "dash", "-": "dash", "dot": "dot", ".": "dot", "period": "dot",
 }
+
+for _d in range(10):
+    BUTTON_ALIASES[str(_d)] = "num_%d" % _d
+    BUTTON_ALIASES["num_%d" % _d] = "num_%d" % _d
+    BUTTON_ALIASES["digit_%d" % _d] = "num_%d" % _d
+    BUTTON_ALIASES["number_%d" % _d] = "num_%d" % _d
 
 KEEP = ["power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
         "input", "up", "down", "left", "right", "ok", "back", "home", "menu",
-        "play_pause", "temp_up", "temp_down", "mode", "fan", "swing", "speed",
-        "light", "timer", "sleep", "brightness_up", "brightness_down", "color",
-        "zoom_in", "zoom_out"]
+        "exit", "info", "guide", "play_pause", "stop", "rewind", "forward",
+        "prev", "next", "record", "temp_up", "temp_down", "mode", "fan", "swing",
+        "speed", "light", "timer", "sleep", "brightness_up", "brightness_down",
+        "color", "red", "green", "yellow", "blue", "zoom_in", "zoom_out",
+        "subtitle", "audio", "aspect", "last", "fav", "apps", "netflix",
+        "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
+        "num_8", "num_9", "dash", "dot"]
 
 
 def normalize(name):
