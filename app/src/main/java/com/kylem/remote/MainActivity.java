@@ -133,7 +133,8 @@ public class MainActivity extends Activity {
 
     static class Candidate {
         Remote remote;
-        Code power;
+        Code code;
+        String label;
     }
 
     private ConsumerIrManager ir;
@@ -1073,16 +1074,28 @@ public class MainActivity extends Activity {
     private void addCandidate(Remote r, Map<String, Candidate> unique) {
         Code power = r.buttons.get("power");
         if (power == null) return;
-        String key = power.freq + ":" + Arrays.hashCode(power.pattern);
+        addCandidate(r, power, "", unique);
+        Code off = r.buttons.get("power_off");
+        if (off != null && "Air Conditioner".equals(r.category)
+                && !(off.freq == power.freq && Arrays.equals(off.pattern, power.pattern))) {
+            addCandidate(r, off, "  (Power Off)", unique);
+        }
+    }
+
+    private void addCandidate(Remote r, Code code, String label,
+                              Map<String, Candidate> unique) {
+        String key = code.freq + ":" + Arrays.hashCode(code.pattern);
         Candidate existing = unique.get(key);
         if (existing == null) {
             Candidate c = new Candidate();
             c.remote = r;
-            c.power = power;
+            c.code = code;
+            c.label = label;
             unique.put(key, c);
         } else if (r.buttons.size() > existing.remote.buttons.size()) {
             existing.remote = r;
-            existing.power = power;
+            existing.code = code;
+            existing.label = label;
         }
     }
 
@@ -1094,7 +1107,7 @@ public class MainActivity extends Activity {
         }
         Candidate c = candidates.get(nextCandidate);
         nextCandidate++;
-        transmit(c.power, "Air Conditioner".equals(current.category)
+        transmit(c.code, "Air Conditioner".equals(current.category)
                 && DeviceStore.acPowerRepeat(this));
         if (scannerDialog != null && scannerDialog.getWindow() != null) {
             scannerDialog.getWindow().getDecorView()
@@ -1116,7 +1129,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacksAndMessages(null);
         nextCandidate = index + 1;
         Candidate c = candidates.get(index);
-        transmit(c.power, "Air Conditioner".equals(current.category)
+        transmit(c.code, "Air Conditioner".equals(current.category)
                 && DeviceStore.acPowerRepeat(this));
         progress.setProgress(nextCandidate);
         scanCount.setText("Replaying " + nextCandidate + " / " + candidates.size());
@@ -1201,8 +1214,19 @@ public class MainActivity extends Activity {
                 p2.topMargin = dp(8);
                 controlsCard.addView(power2, p2);
                 buttons.put("__power2", power2);
+                if (current.buttons.containsKey("power_off")) {
+                    Button powerOff = styledButton("POWER OFF", BTN, 14);
+                    powerOff.setTextColor(RED);
+                    powerOff.setOnClickListener(v -> send("power_off"));
+                    LinearLayout.LayoutParams po = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+                    po.topMargin = dp(8);
+                    controlsCard.addView(powerOff, po);
+                    buttons.put("power_off", powerOff);
+                }
                 controlsCard.addView(text(
-                        "Some ACs ignore a single frame. Try POWER ×2 at close range.",
+                        "Some ACs use separate On/Off codes; try POWER OFF too. "
+                                + "POWER ×2 helps units that ignore one frame.",
                         11, MUTED, false));
             }
         }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — 2026-10-29
+
+- Scanner now tries AC **Power Off** codes as well as Power, for units with
+  separate On/Off commands.
+- Added a dedicated **POWER OFF** button on aircon controls.
+- Fixed ACs that appeared to "never be found" while already powered on.
+
 ## 1.1 — 2026-10-29
 
 - OLED-black redesign with rounded outlined buttons and cleaner layout.
