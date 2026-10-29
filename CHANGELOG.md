@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2 — 2026-10-29
+
+- Expanded to **39 categories · 1,502 remotes · 17,789 codes**.
+- Kept every model profile instead of collapsing duplicate code sets, so more
+  exact model names are available.
+- Added Clock, Digital Sign, Dust Collector, Head Unit, Universal Remote and
+  Video Conferencing categories.
+- All available aircon buttons remain included.
+
 ## 1.1.1 — 2026-10-29
 
 - Scanner now tries AC **Power Off** codes as well as Power, for units with
@@ -36,7 +45,7 @@
 First public release.
 
 - Android IR remote for phones with a built-in IR blaster.
-- 33 device categories, 1,454 remotes, 17,278 IR patterns from Flipper-IRDB.
+- 39 device categories, 1,502 remotes, 17,789 IR patterns from Flipper-IRDB.
 - TV, air conditioner, projector, fan, LED lighting, soundbar, audio receiver,
   speaker, streaming box, cable/sat box, disc players, cameras, purifiers,
   heaters, monitors and more.

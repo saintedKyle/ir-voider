@@ -28,6 +28,10 @@ OUT_CATEGORIES = OrderedDict([
     ("Multimedia", "Multimedia"), ("Consoles", "Console"), ("Toys", "Toy"),
     ("Fireplaces", "Fireplace"), ("Picture_Frames", "Picture Frame"),
     ("Laserdisc", "Laserdisc"), ("MiniDisc", "MiniDisc"),
+    ("Clocks", "Clock"), ("Digital_Signs", "Digital Sign"),
+    ("Dust_Collectors", "Dust Collector"), ("Head_Units", "Head Unit"),
+    ("Universal_TV_Remotes", "Universal Remote"),
+    ("Videoconferencing", "Video Conferencing"),
     ("Miscellaneous", "Misc"),
 ])
 OUT = "app/src/main/assets/remotes.json"
@@ -392,7 +396,6 @@ def main():
             if not os.path.isdir(bpath):
                 continue
             remotes = []
-            brand_sigs = {}
             for fn in sorted(os.listdir(bpath)):
                 if not fn.endswith(".ir"):
                     continue
@@ -410,15 +413,7 @@ def main():
                 if "power" not in buttons:
                     continue
                 ordered = {k: buttons[k] for k in KEEP if k in buttons}
-                sig = tuple((k, v[0], tuple(v[1])) for k, v in ordered.items())
-                prev = brand_sigs.get(sig)
-                if prev is not None:
-                    if len(ordered) > len(prev["buttons"]):
-                        prev["buttons"] = ordered
-                        prev["name"] = fn[:-3]
-                    continue
                 remote = {"name": fn[:-3], "buttons": ordered}
-                brand_sigs[sig] = remote
                 remotes.append(remote)
                 count += 1
             if remotes:
