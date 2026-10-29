@@ -10,9 +10,9 @@ IR Voider is a **personal project**. External contributions are not accepted.
 
 ## Forks
 
-The GPL-3.0-or-later license legally permits forking. The repository may disable
-GitHub's fork button as a courtesy, but that does not remove GPL rights. The
-maintainer does not support, review or endorse forks.
+The GPL-3.0-or-later license permits forking, and GitHub does not allow disabling
+forks on a public repository. The maintainer does not support, review or endorse
+forks.
 
 Do not publish modified builds under the **IR Voider** name or logo. The branding
 is not licensed for forks or redistributed builds.

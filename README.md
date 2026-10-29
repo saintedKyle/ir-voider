@@ -56,8 +56,8 @@ No account, no analytics, no ads, no network access. The only permission is
 
 **License:** [GPL-3.0-or-later](LICENSE). The app is free and open source.
 
-**Forking:** the GPL legally permits forks. GitHub's fork button can be turned
-off as a courtesy, but a free-software license cannot forbid forking. The
+**Forking:** the GPL permits forks, and GitHub does not allow disabling forks on
+a public repository — a public open-source repo is forkable by design. The
 maintainer does not support or endorse modified builds. The **IR Voider** name
 and logo are not licensed for forks or redistributed builds.
 

@@ -23,7 +23,7 @@ hardware by region and model number, so verify before buying or relying on it.
 
 | Family | Examples | Notes |
 | --- | --- | --- |
-| Xiaomi / Redmi / Poco | Redmi Note 8–14 (select models), Poco X3–X7, Poco F3–F5, Xiaomi 11T/12/13/14/15 (select) | Many, but not every variant has IR. |
+| Xiaomi / Redmi / Poco | Redmi Note 8–14 (select models), Poco X3–X7, Poco F3–F5, Xiaomi 11T/12 series (select) | Many, but not every variant has IR. |
 | Huawei / Honor | Mate 20/30, P50 Pro, Honor 8/8 Pro | Older or China-market models; newer flagships often omit IR. |
 | vivo / iQOO | X70 Pro+, iQOO 13, T4X/T5 (reports) | Region-dependent. |
 | OPPO | K13, Reno 14 (reports) | Region-dependent. |
