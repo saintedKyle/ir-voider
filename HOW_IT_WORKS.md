@@ -81,6 +81,8 @@ appear under the **Learned** brand in the current category.
 - Sunlight, fluorescent/plasma light and some cases reduce range.
 - Built-in air-conditioner profiles expose **Power only**; full-state
   temperature/mode frames need a separate encoder set.
+- Some ACs need the same frame repeated. Enable **Repeat aircon POWER** in
+  IR & scan settings to send it using the boost count.
 - The phone cannot control RF, Bluetooth-only, or Wi-Fi-only devices.
 
 ## Permissions and privacy

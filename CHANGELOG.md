@@ -10,6 +10,7 @@
 - Expanded button set: digits, colors, info/guide, media transport, subtitle,
   audio, aspect, apps and more.
 - "Boost all" repeat option for every button except POWER.
+- Opt-in AC POWER repeat for air conditioners that ignore a single frame.
 
 
 ## 1.0 — 2026-10-29

@@ -45,6 +45,7 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
 - IR boost for volume/channel/temperature, plus **Boost all** for every button
   except POWER.
 - Import raw `.ir` captures as "Learned" remotes.
+- Opt-in **AC power repeat** for air conditioners that ignore a single frame.
 - **No internet permission.** Works in airplane mode.
 
 Air conditioners in the built-in database expose **Power only**; full-state

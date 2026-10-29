@@ -150,6 +150,14 @@ public final class DeviceStore {
         prefs(c).edit().putBoolean("boostAll", value).apply();
     }
 
+    public static boolean acPowerRepeat(Context c) {
+        return prefs(c).getBoolean("acPowerRepeat", false);
+    }
+
+    public static void setAcPowerRepeat(Context c, boolean value) {
+        prefs(c).edit().putBoolean("acPowerRepeat", value).apply();
+    }
+
     public static int scanDelayMs(Context c) {
         return prefs(c).getInt("scanDelay", 2000);
     }

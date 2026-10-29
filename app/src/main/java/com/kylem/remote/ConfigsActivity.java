@@ -288,6 +288,21 @@ public class ConfigsActivity extends Activity {
                 "Repeats every button except POWER. This can double-trigger "
                         + "toggles or OK on sensitive devices; turn it off if that happens.",
                 11, MUTED, false));
+        CheckBox acRepeat = new CheckBox(this);
+        acRepeat.setText("Repeat aircon POWER (try 2x)");
+        acRepeat.setTextColor(TEXT);
+        acRepeat.setButtonTintList(ColorStateList.valueOf(ACCENT));
+        acRepeat.setChecked(DeviceStore.acPowerRepeat(this));
+        acRepeat.setOnCheckedChangeListener((buttonView, isChecked) ->
+                DeviceStore.setAcPowerRepeat(ConfigsActivity.this, isChecked));
+        LinearLayout.LayoutParams acLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        acLp.topMargin = dp(4);
+        settings.addView(acRepeat, acLp);
+        settings.addView(text(
+                "Some air conditioners ignore a single frame. This repeats POWER "
+                        + "using the IR boost count; it may toggle twice on other ACs.",
+                11, MUTED, false));
         addCard(root, settings);
 
         // Learn mode honesty card

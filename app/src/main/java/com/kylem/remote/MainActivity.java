@@ -900,8 +900,13 @@ public class MainActivity extends Activity {
             status.setText("This remote has no \u201c" + labelFor(key) + "\u201d code.");
             return;
         }
-        boolean repeat = !"power".equals(key)
-                && (isRepeatable(key) || DeviceStore.boostAll(this));
+        boolean repeat;
+        if ("power".equals(key)) {
+            repeat = "Air Conditioner".equals(current.category)
+                    && DeviceStore.acPowerRepeat(this);
+        } else {
+            repeat = isRepeatable(key) || DeviceStore.boostAll(this);
+        }
         transmit(code, repeat);
         status.setText("Sent " + labelFor(key) + ".");
     }
@@ -1002,7 +1007,8 @@ public class MainActivity extends Activity {
         }
         Candidate c = candidates.get(nextCandidate);
         nextCandidate++;
-        transmit(c.power, false);
+        transmit(c.power, "Air Conditioner".equals(current.category)
+                && DeviceStore.acPowerRepeat(this));
         scanPanel.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
         progress.setProgress(nextCandidate);
         scanCount.setText("Scanning " + nextCandidate + " / " + candidates.size());
@@ -1020,7 +1026,8 @@ public class MainActivity extends Activity {
         handler.removeCallbacksAndMessages(null);
         nextCandidate = index + 1;
         Candidate c = candidates.get(index);
-        transmit(c.power, false);
+        transmit(c.power, "Air Conditioner".equals(current.category)
+                && DeviceStore.acPowerRepeat(this));
         progress.setProgress(nextCandidate);
         scanCount.setText("Replaying " + nextCandidate + " / " + candidates.size());
         scanName.setText(c.remote.brand + " \u2014 " + pretty(c.remote.name));
