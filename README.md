@@ -35,7 +35,7 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
 
 ## What it does
 
-- **33 categories · 1,451 remotes · 16,841 IR codes** from Flipper-IRDB.
+- **33 categories · 1,454 remotes · 17,278 IR codes** from Flipper-IRDB.
 - Dynamic buttons per device with **swipeable pages** (Basics, Navigation, Media,
   Numbers, Colors, Extras). Power stays pinned above the pages.
 - Expanded keys: digits, color buttons, info/guide, media transport, subtitle,
@@ -48,9 +48,10 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
 - Opt-in **AC power repeat** for air conditioners that ignore a single frame.
 - **No internet permission.** Works in airplane mode.
 
-Air conditioners in the built-in database expose **Power only**; full-state
-temperature/mode frames need a separate encoder set. A raw `.ir` capture can add
-more buttons for your own AC.
+Air conditioners include the buttons captured in the database (power, temp,
+mode, fan, swing, timer where available). Raw AC frames can represent a fixed
+state rather than an incremental step; if your model is missing, its protocol is
+not in the database. A raw `.ir` capture can add your own buttons.
 
 ## Preview
 

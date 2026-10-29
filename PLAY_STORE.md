@@ -92,7 +92,7 @@ TV, air conditioner, projector, fan, LED lighting, soundbar, audio receiver,
 speaker, streaming box, cable/satellite box, DVD/Blu-ray, VCR, camera, air
 purifier, heater, humidifier, vacuum, monitor and more.
 
-1,451 REMOTES · 16,841 IR CODES
+1,454 REMOTES · 17,278 IR CODES
 Codes come from the public Flipper-IRDB database and are bundled offline.
 
 FIND A WORKING CODE
@@ -112,8 +112,8 @@ LIMITS
 - IR is line of sight; point the top edge at the device.
 - Range depends on the phone and the device receiver (often 3–5 m).
 - The phone cannot receive IR, so direct learning is not possible.
-- Built-in aircon profiles expose Power only; full temperature/mode frames need
-  a separate encoder set or an imported raw capture.
+- Built-in aircon profiles include the captured buttons; raw frames can set a
+  fixed state, and unsupported protocols need an imported capture.
 
 Source code: https://github.com/saintedKyle/ir-voider
 Phone list: https://github.com/saintedKyle/ir-voider/blob/main/PHONE_COMPATIBILITY.md

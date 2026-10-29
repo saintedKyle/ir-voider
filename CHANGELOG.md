@@ -18,7 +18,7 @@
 First public release.
 
 - Android IR remote for phones with a built-in IR blaster.
-- 33 device categories, 1,451 remotes, 16,841 IR patterns from Flipper-IRDB.
+- 33 device categories, 1,454 remotes, 17,278 IR patterns from Flipper-IRDB.
 - TV, air conditioner, projector, fan, LED lighting, soundbar, audio receiver,
   speaker, streaming box, cable/sat box, disc players, cameras, purifiers,
   heaters, monitors and more.

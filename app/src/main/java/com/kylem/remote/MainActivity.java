@@ -1157,9 +1157,9 @@ public class MainActivity extends Activity {
 
         if ("Air Conditioner".equals(current.category)) {
             controlsCard.addView(text(
-                    "Built-in aircon codes expose Power only. Full state frames "
-                            + "(temperature, mode, fan) need a separate encoder set; "
-                            + "imported/learned remotes can include their own buttons.",
+                    "Aircon codes are included per button. Temperature/mode buttons "
+                            + "may set a captured state rather than step; if your model "
+                            + "is missing, its IR protocol is not in this database.",
                     11, MUTED, false));
         }
         if (hasRepeatable(pages)) {

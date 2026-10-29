@@ -31,8 +31,8 @@ The built-in database is generated from
 Database at release 1.0:
 
 - 33 categories
-- 1,451 remotes
-- 16,841 button patterns
+- 1,454 remotes
+- 17,278 button patterns
 
 The app loads the database once at startup. No network request is made.
 
@@ -79,8 +79,9 @@ appear under the **Learned** brand in the current category.
 - Line of sight: point the top edge at the device's IR window.
 - Range depends on the phone's LED and the device's receiver (often 3–5 m).
 - Sunlight, fluorescent/plasma light and some cases reduce range.
-- Built-in air-conditioner profiles expose **Power only**; full-state
-  temperature/mode frames need a separate encoder set.
+- Built-in air-conditioner profiles include the captured buttons (power, temp,
+  mode, fan where available). Raw AC frames can set a fixed state rather than
+  step; unsupported AC protocols are not in the database.
 - Some ACs need the same frame repeated. Enable **Repeat aircon POWER** in
   IR & scan settings to send it using the boost count.
 - The phone cannot control RF, Bluetooth-only, or Wi-Fi-only devices.

@@ -409,10 +409,6 @@ def main():
                     buttons[key] = [res[0], res[1]]
                 if "power" not in buttons:
                     continue
-                if folder == "ACs":
-                    # Only power is safe to expose: AC frames encode full state.
-                    buttons = {k: v for k, v in buttons.items()
-                               if k in ("power", "power_off")}
                 ordered = {k: buttons[k] for k in KEEP if k in buttons}
                 sig = tuple((k, v[0], tuple(v[1])) for k, v in ordered.items())
                 prev = brand_sigs.get(sig)
