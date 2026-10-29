@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IR Voider — offline IR remote for Android phones</title>
+  <meta name="description" content="IR Voider is an offline IR remote for Android phones with a built-in IR blaster. No ads, no account, no internet permission.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <img src="images/icon.png" alt="IR Voider icon">
+      <div>
+        <h1>IR Voider</h1>
+        <p>The offline IR remote for Android phones with a built-in IR blaster.</p>
+        <span class="tag">Phone only · Android 6.0+ · no internet</span>
+      </div>
+    </section>
+
+    <a class="btn" href="https://github.com/saintedKyle/ir-voider/releases/latest">Download APK</a>
+    <a class="btn secondary" href="https://github.com/saintedKyle/ir-voider">Source on GitHub</a>
+
+    <div class="note">
+      <strong>Requires a phone with an IR emitter.</strong> It does not work on iPhones,
+      iPads, tablets, PCs, or phones without IR hardware. Google Play release is pending.
+    </div>
+
+    <h2>What it does</h2>
+    <div class="grid">
+      <div class="card"><h3>33 device types</h3><p>TV, air conditioner, projector, fan, LED, soundbar, audio, streaming and more.</p></div>
+      <div class="card"><h3>1,421 remotes</h3><p>10,180 IR codes from the public Flipper-IRDB database, stored offline.</p></div>
+      <div class="card"><h3>Auto-find</h3><p>Sends power codes until your device reacts, with a Previous replay if you miss it.</p></div>
+      <div class="card"><h3>Saved devices</h3><p>Name your TV, AC or projector and switch between them.</p></div>
+      <div class="card"><h3>No network</h3><p>No internet permission, no ads, no accounts, no analytics.</p></div>
+      <div class="card"><h3>Import</h3><p>Add raw <code>.ir</code> captures as a Learned remote.</p></div>
+    </div>
+
+    <h2>How it works</h2>
+    <p>The phone's IR LED sends the same kind of invisible pulses as a normal remote.
+      IR Voider uses Android's <code>ConsumerIrManager</code> to transmit stored timing
+      patterns. There is no Wi-Fi, Bluetooth, account or server involved. IR is
+      line-of-sight: point the top edge at the device.</p>
+    <p>The phone cannot receive IR, so it cannot learn directly from another remote.
+      Importing a raw capture made with an external IR receiver is supported.</p>
+
+    <h2>Privacy and terms</h2>
+    <p><a href="privacy.html">Privacy policy</a> · <a href="terms.html">Terms of use</a> ·
+      <a href="https://github.com/saintedKyle/ir-voider/blob/main/PHONE_COMPATIBILITY.md">Phone compatibility</a></p>
+
+    <div class="footer">
+      <span>Made by poging kyle.</span>
+      <span>GPL-3.0-or-later · IR codes CC0</span>
+    </div>
+  </main>
+</body>
+</html>

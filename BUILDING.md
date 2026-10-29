@@ -3,7 +3,8 @@
 ## Requirements
 
 - Android Studio (latest stable) **or** JDK 17+ with the Android SDK.
-- Android SDK Platform 34 and Build-Tools 34.0.0.
+- Android SDK Platform 36 and Build-Tools 36.0.0.
+- Android Gradle Plugin 8.10.1 and Gradle 8.11.1 (wrapper included).
 - Python 3.10+ only if you want to regenerate the IR database.
 
 The `toolchain/` and `data/` folders used during development are **not** part of
@@ -35,7 +36,20 @@ Then:
 APK: `app/build/outputs/apk/debug/app-debug.apk`
 
 The bundled `dist/IRVoider-1.0.apk` is signed with a debug key for sideloading.
-Release publishing should use your own signing key; never commit a keystore.
+
+## Google Play bundle
+
+1. Run `make-upload-key.bat` once and back up `keys/` and the passwords.
+2. Build the signed bundle:
+
+```bash
+./gradlew bundleRelease
+```
+
+Output: `app/build/outputs/bundle/release/app-release.aab`
+
+Never commit `keys/` or `keystore.properties`. See [PLAY_STORE.md](PLAY_STORE.md)
+for the listing, testing requirements and submission steps.
 
 ## Regenerate the IR database
 
@@ -54,8 +68,8 @@ Flipper protocols to raw timings and copies raw captures.
 ## Versioning
 
 - `versionName` is the public release (`1.0`).
-- `versionCode` is internal and must increase for every sideloaded update.
-- v1.0 uses `versionCode 6` so it installs over the pre-release builds.
+- `versionCode` is internal and must increase for every update.
+- The Play build uses `versionCode 7`; the GitHub APK release uses code 6.
 
 ## Source map
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Target Android 16 (API 36) for Google Play submission.
+- Edge-to-edge window insets on all screens.
+- Release AAB signing setup and Play Store release guide.
+- GitHub Pages privacy/terms pages.
+
+
 ## 1.0 — 2026-10-29
 
 First public release.

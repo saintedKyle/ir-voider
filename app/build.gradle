@@ -2,15 +2,17 @@ plugins {
     id 'com.android.application'
 }
 
+def ksFile = rootProject.file("keystore.properties")
+
 android {
     namespace 'com.kylem.remote'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.kylem.remote"
         minSdk 23
-        targetSdk 34
-        versionCode 6
+        targetSdk 36
+        versionCode 7
         versionName "1.0"
     }
 
@@ -19,9 +21,24 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    signingConfigs {
+        release {
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
         }
     }
+}
+
+if (ksFile.exists()) {
+    def props = new Properties()
+    props.load(new FileInputStream(ksFile))
+    android.signingConfigs.release.storeFile = rootProject.file(props['storeFile'])
+    android.signingConfigs.release.storePassword = props['storePassword']
+    android.signingConfigs.release.keyAlias = props['keyAlias']
+    android.signingConfigs.release.keyPassword = props['keyPassword']
+    android.buildTypes.release.signingConfig = android.signingConfigs.release
 }

@@ -2,6 +2,8 @@
 
 **Effective: 2026-10-29**
 
+Hosted version: https://saintedkyle.github.io/ir-voider/privacy.html
+
 IR Voider is an offline Android IR remote. It does not collect, transmit or sell
 personal data.
 

@@ -28,3 +28,7 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# Play upload key (never commit)
+keystore.properties
+keys/

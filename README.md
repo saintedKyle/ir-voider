@@ -7,7 +7,7 @@
 A clean, offline IR remote for **Android phones with an IR blaster**. No ads, no
 account, no internet permission — just your phone's IR LED.
 
-**Download:** [IRVoider-1.0.apk](dist/IRVoider-1.0.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md)
+**Download:** [IRVoider-1.0.apk](dist/IRVoider-1.0.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md) · **Google Play:** [release guide](PLAY_STORE.md) (pending)
 
 ## Install on your phone
 
@@ -74,7 +74,8 @@ hardware at runtime and shows **IR READY** or **NO IR**.
 ## Privacy
 
 No account, no analytics, no ads, no network access. The only permission is
-`TRANSMIT_IR`. See [PRIVACY.md](PRIVACY.md).
+`TRANSMIT_IR`. See [PRIVACY.md](PRIVACY.md) or the hosted policy:
+https://saintedkyle.github.io/ir-voider/privacy.html
 
 ## License, forks and contributions
 
@@ -98,6 +99,7 @@ accepted. Please do not open pull requests. See [CONTRIBUTING.md](CONTRIBUTING.m
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — code/data credits
 - [BUILDING.md](BUILDING.md) — build from source
 - [CHANGELOG.md](CHANGELOG.md)
+- [PLAY_STORE.md](PLAY_STORE.md) — Google Play release guide
 
 ---
 

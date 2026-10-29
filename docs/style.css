@@ -1,0 +1,43 @@
+:root {
+  --bg: #060a12;
+  --bg2: #0b1220;
+  --card: #121a2b;
+  --stroke: #26344f;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --accent: #22d3ee;
+  --accent2: #6366f1;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #05070d 0%, #0b1220 55%, #111c31 100%);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.65;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 56px 24px 80px; }
+.hero { display: flex; gap: 26px; align-items: center; margin-bottom: 40px; flex-wrap: wrap; }
+.hero img { width: 112px; height: 112px; border-radius: 26px; }
+h1 { font-size: clamp(38px, 7vw, 64px); line-height: 1.05; margin: 0; letter-spacing: -1.5px; }
+h2 { font-size: 26px; margin: 42px 0 12px; letter-spacing: -0.4px; }
+h3 { font-size: 18px; margin: 24px 0 8px; }
+p, li { color: var(--muted); }
+strong { color: var(--text); }
+.tag { display: inline-block; margin-top: 10px; padding: 6px 12px; border: 1px solid #155e75;
+  background: #0b2e3a; color: var(--accent); border-radius: 999px; font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 28px 0; }
+.card { background: var(--card); border: 1px solid var(--stroke); border-radius: 22px; padding: 20px; }
+.card h3 { margin-top: 0; color: var(--text); }
+.btn { display: inline-block; margin: 8px 10px 0 0; padding: 13px 22px; border-radius: 14px;
+  background: linear-gradient(90deg, var(--accent), #3b82f6); color: #04141b;
+  font-weight: 700; }
+.btn.secondary { background: #1b2740; color: var(--text); border: 1px solid var(--stroke); }
+.footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--stroke);
+  color: #64748b; font-size: 14px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.note { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; margin: 18px 0; }
+ul { padding-left: 22px; }
+code { background: #0b1220; border: 1px solid var(--stroke); padding: 2px 6px; border-radius: 6px; }
