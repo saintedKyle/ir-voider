@@ -25,6 +25,10 @@ iPhones, iPads, tablets, TVs, PCs, or phones without IR hardware. On MIUI/HyperO
 The APK is sideloaded, so Android may show a warning. Only install builds from
 this repository's Releases.
 
+> Upgrading from the earlier debug-signed v1.4 APK? Uninstall it first — Android
+> blocks in-place updates when the signing key changes, and saved remotes will be
+> cleared.
+
 ## Use
 
 1. Tap **≡ More** (top-left) and pick a category: TV, air conditioner, projector,
