@@ -71,10 +71,12 @@ Only scan devices you own or have permission to control.
 
 ## Phones
 
-See **[PHONE_COMPATIBILITY.md](PHONE_COMPATIBILITY.md)** for confirmed and commonly
-reported IR phones, models that do not work, and a 10-second check. IR blasters
-are not part of Android's requirements, so the same model name can ship with or
-without one. The app checks the hardware and shows **IR READY** or **NO IR**.
+See **[PHONE_COMPATIBILITY.md](PHONE_COMPATIBILITY.md)** for the **535-listing IR
+phone list**, the confirmed model, historical IR phones that cannot run the app,
+and a 10-second check. It is a public-data snapshot, not a guarantee — same-name
+phones can ship with or without IR by region. IR blasters are not part of
+Android's requirements, so the app checks the hardware and shows **IR READY** or
+**NO IR**.
 
 ## Privacy
 
