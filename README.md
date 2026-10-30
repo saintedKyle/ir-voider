@@ -108,10 +108,10 @@ requests are not accepted.
 ## Preview
 
 <p align="center">
-  <img src="docs/images/preview.png" alt="IR Voider UI preview: Remote, More and Devices screens" width="100%">
+  <img src="docs/images/preview.png" alt="IR Voider UI preview: remote, scanner and air-conditioner screens" width="100%">
 </p>
 
-<p align="center"><em>Illustrative UI preview. The current build groups buttons into swipeable pages (Basics, Navigation, Media, Numbers, Colors, Extras).</em></p>
+<p align="center"><em>Illustrative v1.4 UI preview. Buttons depend on the selected remote profile; pages are swipeable.</em></p>
 
 ## Docs
 

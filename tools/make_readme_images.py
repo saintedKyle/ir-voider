@@ -1,30 +1,26 @@
 #!/usr/bin/env python3
-"""Generate illustrative README preview images for IR Voider.
+"""Generate illustrative README images for IR Voider v1.4.
 
-These are design previews rendered from the app's palette/layout, not device
-screenshots. Requires Pillow and Windows Segoe UI fonts.
+These are design previews built from the app's palette, copy and control layout,
+not device screenshots. Requires Pillow and Windows Segoe UI fonts.
 """
 
 import os
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 W, H = 1080, 2400
-BG_TOP = (5, 7, 13)
-BG_MID = (11, 18, 32)
-BG_BOT = (17, 28, 49)
-CARD = (18, 26, 43)
-CARD2 = (22, 33, 58)
-STROKE = (38, 52, 79)
-BTN = (27, 39, 64)
-ACCENT = (34, 211, 238)
-ACCENT2 = (99, 102, 241)
-TEXT = (248, 250, 252)
-MUTED = (148, 163, 184)
-RED1 = (251, 113, 133)
-RED2 = (225, 29, 72)
-GREEN1 = (52, 211, 153)
-GREEN2 = (5, 150, 105)
-DARK = (4, 20, 27)
+BG = (0, 0, 0)
+CARD = (10, 10, 10)
+CARD2 = (16, 16, 16)
+STROKE = (38, 38, 38)
+BTN = (16, 16, 16)
+ACCENT = (255, 255, 255)
+CYAN = (34, 211, 238)
+TEXT = (245, 245, 247)
+MUTED = (142, 142, 147)
+RED = (255, 77, 109)
+GREEN = (48, 209, 88)
+DARK = (0, 0, 0)
 
 F_BLACK = "C:/Windows/Fonts/segoeuib.ttf"
 F_SEMI = "C:/Windows/Fonts/seguisb.ttf"
@@ -35,6 +31,16 @@ ICON = "app/src/main/res/drawable/ic_launcher.png"
 
 def font(path, size):
     return ImageFont.truetype(path, size)
+
+
+def glow_bg(w, h):
+    img = Image.new("RGB", (w, h), BG)
+    glow = Image.new("RGB", (w, h), (0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse([-220, -260, 680, 560], fill=(0, 54, 64))
+    gd.ellipse([w - 760, h - 580, w + 300, h + 240], fill=(8, 34, 42))
+    glow = glow.filter(ImageFilter.GaussianBlur(150))
+    return Image.blend(img, Image.composite(glow, img, glow.convert("L")), 0.30)
 
 
 def vgrad(size, top, mid, bottom):
@@ -70,9 +76,9 @@ def paste_gradient(base, box, colors, radius, outline=None, width=2):
         ImageDraw.Draw(base).rounded_rectangle(box, radius=radius, outline=outline, width=width)
 
 
-def card(draw, box, radius=48, fill=CARD, outline=STROKE):
+def card(draw, box, radius=28, fill=CARD, outline=STROKE):
     draw.rounded_rectangle([box[0] + 4, box[1] + 6, box[2] + 4, box[3] + 6],
-                           radius=radius, fill=(7, 11, 20))
+                           radius=radius, fill=(4, 4, 4))
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2)
 
 
@@ -88,37 +94,47 @@ def tracked(draw, xy, value, f, fill, spacing=6):
     return x
 
 
-def button(draw, box, label, fill, color=TEXT, radius=32, f=None):
-    draw.rounded_rectangle(box, radius=radius, fill=fill)
-    f = f or font(F_SEMI, 32)
+def button(draw, box, label, fill=BTN, color=TEXT, radius=20, f=None, outline=STROKE):
+    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2)
+    f = f or font(F_REG, 30)
     cx = (box[0] + box[2]) / 2
     cy = (box[1] + box[3]) / 2
     draw.text((cx, cy), label, font=f, fill=color, anchor="mm")
 
 
-def gradient_button(img, draw, box, label, colors, color, radius=36, size=36):
-    paste_gradient(img, box, colors, radius)
-    f = font(F_BLACK, size)
+def highlight_button(draw, box, label, size=40, radius=22):
+    draw.rounded_rectangle(box, radius=radius, fill=(242, 242, 247))
     draw.text(((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), label,
-              font=f, fill=color, anchor="mm")
+              font=font(F_SEMI, size), fill=DARK, anchor="mm")
+
+
+def pill(draw, x, y, label, f, color=CYAN, fill=CARD, outline=STROKE, pad_x=14, pad_y=5):
+    w = draw.textlength(label, font=f) + pad_x * 2
+    h = f.size + pad_y * 2 + 3
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=h / 2, fill=fill,
+                           outline=outline, width=1)
+    draw.text((x + pad_x, y + pad_y), label, font=f, fill=color, anchor="la")
+    return w
 
 
 def status_bar(draw):
     f = font(F_SEMI, 28)
     draw.text((44, 34), "9:41", font=f, fill=TEXT, anchor="la")
-    # signal bars
     x = 880
     for i, hgt in enumerate((10, 16, 22, 28)):
         draw.rounded_rectangle([x + i * 12, 56 - hgt, x + i * 12 + 7, 56],
                                radius=2, fill=TEXT)
-    # wifi arcs
     draw.arc([952, 30, 1000, 70], start=200, end=340, fill=TEXT, width=4)
     draw.arc([962, 40, 990, 66], start=200, end=340, fill=TEXT, width=4)
     draw.ellipse([973, 53, 979, 59], fill=TEXT)
-    # battery
     draw.rounded_rectangle([1012, 34, 1054, 58], radius=5, outline=TEXT, width=3)
     draw.rounded_rectangle([1015, 37, 1043, 55], radius=3, fill=TEXT)
     draw.rectangle([1055, 42, 1059, 50], fill=TEXT)
+
+
+def home_bar(draw, dark=False):
+    color = (70, 70, 74) if not dark else (30, 30, 30)
+    draw.rounded_rectangle([470, 2368, 610, 2375], radius=4, fill=color)
 
 
 def logo(size, radius):
@@ -131,308 +147,287 @@ def logo(size, radius):
     return out
 
 
-def chip(draw, x, y, label, f, fill, color, outline, pad_x=18, pad_y=8):
-    w = draw.textlength(label, font=f) + pad_x * 2
-    draw.rounded_rectangle([x, y, x + w, y + f.size + pad_y * 2], radius=40,
-                           fill=fill, outline=outline, width=2)
-    draw.text((x + pad_x, y + pad_y), label, font=f, fill=color, anchor="la")
-    return x + w
-
-
-def draw_home():
-    img = Image.new("RGB", (W, H), BG_TOP)
-    img.paste(vgrad((W, H), BG_TOP, BG_MID, BG_BOT), (0, 0))
-    d = ImageDraw.Draw(img)
-    status_bar(d)
-
-    # top bar
-    d.rounded_rectangle([40, 96, 148, 204], radius=28, fill=BTN)
+def top_bar(img, d, category):
+    d.rounded_rectangle([40, 96, 148, 204], radius=28, fill=BTN,
+                        outline=STROKE, width=2)
     for i in range(3):
         d.rounded_rectangle([66, 126 + i * 20, 122, 132 + i * 20], radius=3, fill=TEXT)
-    img.paste(logo(84, 24), (170, 108), logo(84, 24))
+    icon = logo(84, 24)
+    img.paste(icon, (170, 108), icon)
     text(d, (278, 92), "IR Voider", font(F_BLACK, 54), TEXT)
-    f_small = font(F_SEMI, 25)
-    text(d, (280, 164), "TV", f_small, ACCENT)
-    text(d, (316, 164), "  ·  345 codes  ·  ≡ for more", f_small, MUTED)
-    d.rounded_rectangle([940, 96, 1040, 196], radius=28, fill=BTN)
+    pill(d, 280, 160, category, font(F_SEMI, 22), TEXT)
+    d.rounded_rectangle([940, 96, 1040, 196], radius=28, fill=BTN,
+                        outline=STROKE, width=2)
     d.text((990, 146), "\u2699", font=font(F_SYM, 40), fill=TEXT, anchor="mm")
 
-    # now card
-    card(d, (40, 246, 1040, 586))
-    tracked(d, (76, 286), "NOW USING", font(F_SEMI, 23), ACCENT, 4)
-    chip(d, 858, 278, "IR READY", font(F_SEMI, 21), (12, 46, 36),
-         (110, 231, 183), (20, 83, 45), 16, 7)
-    text(d, (76, 336), "Living Room TV", font(F_BLACK, 50), TEXT)
-    text(d, (76, 410), "TV  ·  TCL — TCL_65C635K", font(F_REG, 28), MUTED)
-    text(d, (76, 466), "Tap ≡ to change category, or the gear to name and save devices.",
-         font(F_REG, 24), MUTED)
-    text(d, (76, 520), "Power is a toggle — the same button turns it on and off.",
-         font(F_REG, 24), MUTED)
 
-    # controls card
-    card(d, (40, 626, 1040, 1656))
-    tracked(d, (76, 664), "CONTROLS", font(F_SEMI, 22), MUTED, 4)
-    gradient_button(img, d, (76, 706, 1004, 818), "POWER",
-                    (RED1, RED2), (255, 255, 255), 38, 42)
+def now_card(img, d, name, meta, note):
+    card(d, (40, 246, 1040, 552))
+    tracked(d, (76, 286), "NOW USING", font(F_SEMI, 24), TEXT, 5)
+    pill(d, 846, 276, "IR READY", font(F_SEMI, 21), (110, 231, 183),
+         (12, 46, 36), (20, 83, 45), 14, 4)
+    text(d, (76, 336), name, font(F_BLACK, 50), TEXT)
+    text(d, (76, 408), meta, font(F_REG, 27), MUTED)
+    text(d, (76, 456), note, font(F_REG, 23), MUTED)
+    text(d, (76, 496), "Power toggles; saved devices are one tap away.",
+         font(F_REG, 22), MUTED)
 
-    rows = [
-        ["Vol +", "Vol −", "Mute"],
-        ["CH +", "CH −", "Input"],
-        [None, "▲", None],
-        ["‹", "OK", "›"],
-        [None, "▼", None],
-        ["Back", "Home", "Menu"],
-        ["Play/Pause", None, None],
-    ]
-    y = 848
-    for row in rows:
-        for i, label in enumerate(row):
-            if label is None:
-                continue
-            x = 76 + i * 312
-            w = 300
-            if row[0] is None and row[2] is None:
-                x = 390
-                w = 300
-            button(d, (x, y, x + w, y + 92), label, BTN, TEXT, 30,
-                   font(F_SEMI, 31))
-        y += 104
-    text(d, (76, 1600), "Hold Vol or CH to repeat.", font(F_REG, 23), MUTED)
 
-    # find card
-    card(d, (40, 1690, 1040, 2320))
-    text(d, (76, 1726), "Find a working code", font(F_BLACK, 39), TEXT)
-    # brand/model fields
-    for i, (label, value) in enumerate((("Brand", "TCL"), ("Model", "TCL 65C635K"))):
-        yy = 1794 + i * 96
-        d.rounded_rectangle([76, yy, 1004, yy + 80], radius=26, fill=CARD2,
-                            outline=STROKE, width=2)
-        text(d, (104, yy + 25), label, font(F_SEMI, 25), MUTED)
-        text(d, (230, yy + 24), value, font(F_SEMI, 28), TEXT)
-        d.text((960, yy + 40), "⌄", font=font(F_SYM, 30), fill=MUTED, anchor="mm")
-    text(d, (76, 1990), "Point the phone's top edge at the device. One code at a time.",
-         font(F_REG, 23), MUTED)
-    # checkbox
-    d.rounded_rectangle([76, 2040, 110, 2074], radius=8, outline=ACCENT, width=3)
-    d.line([83, 2057, 92, 2066, 105, 2047], fill=ACCENT, width=4)
-    text(d, (128, 2042), "Search every brand in this category", font(F_REG, 26), TEXT)
-    # speed
-    text(d, (76, 2110), "Speed", font(F_REG, 26), MUTED)
-    labels = ["1.5 s", "2 s", "3 s"]
-    for i, lab in enumerate(labels):
-        x = 200 + i * 150
-        active = i == 1
-        d.rounded_rectangle([x, 2100, x + 136, 2160], radius=20,
-                            fill=ACCENT if active else BTN)
-        d.text((x + 68, 2130), lab, font=font(F_SEMI, 28),
-               fill=DARK if active else MUTED, anchor="mm")
-    gradient_button(img, d, (76, 2190, 1004, 2288), "Find code",
-                    ((34, 211, 238), (59, 130, 246)), DARK, 36, 36)
+def page_dots(d, x, y, count=6, current=1):
+    parts = []
+    for i in range(count):
+        parts.append("\u25CF" if i == current - 1 else "\u25CB")
+    s = "  ".join(parts) + f"    {current}/{count}"
+    d.text((x, y), s, font=font(F_SEMI, 26), fill=TEXT, anchor="ra")
 
-    text(d, (540, 2360), "made by poging kyle", font(F_REG, 23), MUTED, "mm")
+
+def page_row(d, y, label, x=76, w=928):
+    button(d, (x, y, x + 92, y + 50), "\u2039", BTN, TEXT, 18,
+           font(F_SEMI, 30))
+    button(d, (x + w - 92, y, x + w, y + 50), "\u203A", BTN, TEXT, 18,
+           font(F_SEMI, 30))
+    d.text((x + w / 2, y + 25), label, font=font(F_SEMI, 22),
+           fill=MUTED, anchor="mm")
+
+
+def field(d, y, label, value, x=76, w=928, search=False):
+    d.rounded_rectangle([x, y, x + w, y + 80], radius=22, fill=CARD2,
+                        outline=STROKE, width=2)
+    d.text((x + 28, y + 26), label, font=font(F_SEMI, 24), fill=MUTED, anchor="la")
+    d.text((x + 162, y + 24), value, font=font(F_SEMI, 27), fill=TEXT, anchor="la")
+    if search:
+        button(d, (x + w - 132, y + 10, x + w - 12, y + 70), "Search",
+               BTN, TEXT, 16, font(F_SEMI, 20))
+    else:
+        d.text((x + w - 48, y + 40), "\u2304", font=font(F_SYM, 32),
+               fill=MUTED, anchor="mm")
+
+
+def remote_screen():
+    img = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(img)
+    status_bar(d)
+    top_bar(img, d, "TV  \u00B7  345 remotes")
+    now_card(img, d, "Living Room TV", "TV  \u00B7  TCL \u2014 TCL_65C635K",
+             "Tap the menu to change category, or the gear to name and save devices.")
+
+    card(d, (40, 582, 1040, 1230))
+    tracked(d, (76, 618), "CONTROLS", font(F_SEMI, 21), MUTED, 5)
+    highlight_button(d, (76, 656, 1004, 768), "POWER", 40)
+    d.text((76, 802), "BASICS", font=font(F_SEMI, 24), fill=TEXT, anchor="la")
+    page_dots(d, 1004, 796, 6, 1)
+
+    labels = [["Vol +", "Vol \u2212", "Mute"], ["CH +", "CH \u2212", "Input"]]
+    for r, row in enumerate(labels):
+        y = 844 + r * 104
+        for c, label in enumerate(row):
+            x = 76 + c * 312
+            button(d, (x, y, x + 300, y + 92), label, BTN, TEXT, 20,
+                   font(F_SEMI, 30))
+
+    page_row(d, 1066, "Swipe left or right for more buttons")
+    d.text((76, 1132), "BASICS  \u00B7  NAVIGATION  \u00B7  MEDIA  \u00B7  NUMBERS  \u00B7  COLORS  \u00B7  EXTRAS",
+           font=font(F_REG, 19), fill=MUTED, anchor="la")
+    d.text((76, 1174), "Swipe pages \u2014 only the buttons this remote has.",
+           font=font(F_REG, 21), fill=MUTED, anchor="la")
+
+    card(d, (40, 1268, 1040, 2070))
+    text(d, (76, 1304), "Find a working code", font(F_BLACK, 44), TEXT)
+    field(d, 1368, "Brand", "TCL", search=True)
+    field(d, 1462, "Model", "TCL 65C635K")
+    text(d, (76, 1570), "Point the phone's top edge at the device. The scan sends one",
+         font(F_REG, 22), MUTED)
+    text(d, (76, 1602), "power code at a time; stop when the device reacts.",
+         font(F_REG, 22), MUTED)
+
+    d.rounded_rectangle([76, 1652, 110, 1686], radius=8, outline=TEXT, width=3)
+    text(d, (128, 1654), "Search every brand in this category", font(F_REG, 25), TEXT)
+
+    d.text((76, 1722), "Speed", font=font(F_REG, 25), fill=MUTED, anchor="la")
+    speeds = ["1 s", "1.5 s", "2 s", "3 s"]
+    for i, label in enumerate(speeds):
+        x = 190 + i * 194
+        active = i == 2
+        button(d, (x, 1706, x + 170, 1764), label,
+               (242, 242, 247) if active else BTN,
+               DARK if active else MUTED, 18, font(F_SEMI, 24))
+
+    button(d, (76, 1800, 1004, 1900), "Find code", (242, 242, 247), DARK, 22,
+           font(F_SEMI, 34))
+    d.text((76, 1934), "Scanner keeps the last five codes it tried.",
+           font=font(F_REG, 22), fill=TEXT, anchor="la")
+    d.text((76, 1972), "It worked saves the match; Previous replays the last code.",
+           font=font(F_REG, 21), fill=MUTED, anchor="la")
+
+    d.text((76, 2100), "Codes: Flipper-IRDB (CC0). IR only \u2014 no network permission.",
+           font=font(F_REG, 20), fill=(100, 100, 104), anchor="la")
+    home_bar(d)
     return img
 
 
-def draw_more(home):
-    base = home.copy()
-    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 165))
-    base = Image.alpha_composite(base.convert("RGBA"), overlay).convert("RGB")
-    d = ImageDraw.Draw(base)
-    # sheet extends below screen
-    d.rounded_rectangle([0, 170, 1080, 2600], radius=64, fill=CARD,
-                        outline=STROKE, width=2)
-    d.rounded_rectangle([478, 204, 602, 214], radius=5, fill=(51, 65, 85))
-    text(d, (56, 242), "More", font(F_BLACK, 64), TEXT)
-    text(d, (58, 326), "Pick a device type, manage devices, fetch remotes.",
-         font(F_REG, 26), MUTED)
-    tracked(d, (58, 398), "CATEGORIES", font(F_SEMI, 22), ACCENT, 4)
-
-    cats = [
-        ("TV", "345 codes", True), ("Air Conditioner", "93 codes", False),
-        ("Projector", "99 codes", False), ("Fan", "118 codes", False),
-        ("LED Light", "110 codes", False), ("Soundbar", "94 codes", False),
-        ("Audio / Receiver", "82 codes", False), ("Streaming Box", "15 codes", False),
-        ("Cable / Sat Box", "43 codes", False), ("Blu-ray Player", "53 codes", False),
-        ("DVD Player", "20 codes", False), ("Camera", "1 code", False),
-        ("Air Purifier", "17 codes", False), ("Heater", "31 codes", False),
-        ("Humidifier", "9 codes", False), ("Monitor", "7 codes", False),
-    ]
-    y = 446
-    for i, (name, count, active) in enumerate(cats):
-        x = 50 + (i % 2) * 510
-        yy = y + (i // 2) * 132
-        d.rounded_rectangle([x, yy, x + 470, yy + 112], radius=26,
-                            fill=(11, 46, 58) if active else CARD2,
-                            outline=ACCENT if active else STROKE, width=2)
-        d.text((x + 24, yy + 22), name, font=font(F_SEMI, 25),
-               fill=ACCENT if active else TEXT)
-        d.text((x + 24, yy + 64), count, font=font(F_REG, 21), fill=MUTED)
-
-    tracked(d, (58, 1520), "TOOLS", font(F_SEMI, 22), ACCENT, 4)
-    tools = [
-        ("Devices", "Name and switch saved devices"),
-        ("Fetch original remote", "Import a captured .ir file"),
-        ("IR & scan settings", "Boost and scan speed"),
-        ("About", "Sources, limits and how it works"),
-    ]
-    y = 1564
-    for title, sub in tools:
-        d.rounded_rectangle([50, y, 1030, y + 104], radius=26, fill=CARD2,
-                            outline=STROKE, width=2)
-        d.text((78, y + 24), title, font=font(F_SEMI, 27), fill=TEXT)
-        d.text((78, y + 63), sub, font=font(F_REG, 21), fill=MUTED)
-        d.text((985, y + 52), "\u203A", font=font(F_REG, 40), fill=MUTED, anchor="mm")
-        y += 118
-    button(d, (50, 2050, 1030, 2144), "Close", BTN, TEXT, 28, font(F_SEMI, 28))
-    text(d, (540, 2310), "made by poging kyle", font(F_REG, 23), MUTED, "mm")
-    return base
-
-
-def draw_devices():
-    img = Image.new("RGB", (W, H), BG_TOP)
-    img.paste(vgrad((W, H), BG_TOP, BG_MID, BG_BOT), (0, 0))
+def scanner_screen():
+    img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
     status_bar(d)
-    text(d, (44, 96), "IR Voider", font(F_BLACK, 54), TEXT)
-    d.rounded_rectangle([884, 96, 1036, 176], radius=28, fill=ACCENT)
-    d.text((960, 136), "Done", font=font(F_SEMI, 28), fill=DARK, anchor="mm")
-    text(d, (44, 196), "Devices & settings — name each remote, switch devices, tune IR.",
+
+    tracked(d, (44, 104), "SCANNING CODES", font(F_SEMI, 20), MUTED, 5)
+    text(d, (44, 148), "Point at the device", font(F_BLACK, 76), TEXT)
+    text(d, (44, 232), "Air Conditioner  \u00B7  92 codes", font(F_REG, 30), MUTED)
+
+    d.rounded_rectangle([44, 302, 1036, 314], radius=7, fill=(24, 24, 24))
+    d.rounded_rectangle([44, 302, 44 + int(992 * 0.13), 314], radius=7, fill=TEXT)
+    text(d, (44, 334), "12 / 92", font(F_REG, 26), MUTED)
+    text(d, (44, 382), "Haier \u2014 HPD10XCM-LW", font(F_BLACK, 62), TEXT)
+    text(d, (44, 454), "Watch the device. When it reacts, tap It worked.",
          font(F_REG, 24), MUTED)
 
-    card(d, (40, 250, 1040, 780))
-    tracked(d, (72, 286), "YOUR DEVICES", font(F_SEMI, 22), ACCENT, 4)
-    devices = [
-        ("Living Room TV", "TV  ·  TCL — TCL_65C635K"),
-        ("Bedroom AC", "Aircon  ·  Generic"),
+    card(d, (44, 524, 1036, 1000))
+    tracked(d, (76, 550), "LAST 5 SCANNED", font(F_SEMI, 18), MUTED, 4)
+    history = [
+        ("12. Haier \u2014 HPD10XCM-LW", TEXT),
+        ("11. Haier \u2014 HWE08XCR-L", MUTED),
+        ("10. Haier \u2014 AS18GD3HRA", MUTED),
+        ("9. TCL \u2014 65C635K", MUTED),
+        ("8. LG \u2014 AKB75095308", MUTED),
     ]
-    y = 340
-    for name, meta in devices:
-        text(d, (72, y), name, font(F_SEMI, 32), TEXT)
-        text(d, (72, y + 46), meta, font(F_REG, 22), MUTED)
-        for i, (lab, col, tc) in enumerate((("Open", (14, 116, 144), TEXT),
-                                           ("Rename", BTN, TEXT),
-                                           ("Delete", (127, 29, 29), TEXT))):
-            x = 72 + i * 146
-            button(d, (x, y + 82, x + 134, y + 122), lab, col, tc, 18,
-                   font(F_SEMI, 20))
-        y += 190
-    d.line([72, 700, 1008, 700], fill=STROKE, width=2)
+    for i, (line, color) in enumerate(history):
+        d.text((76, 592 + i * 46), line, font=font(F_REG, 28), fill=color, anchor="la")
+    d.text((76, 854), "Pause stops sending. Previous replays; Skip 5 jumps ahead.",
+           font=font(F_REG, 21), fill=(100, 100, 104), anchor="la")
 
-    card(d, (40, 818, 1040, 1430))
-    tracked(d, (72, 854), "ADD CURRENT REMOTE", font(F_SEMI, 22), ACCENT, 4)
-    text(d, (72, 896), "Current: TCL — TCL_65C635K", font(F_REG, 25), TEXT)
-    d.rounded_rectangle([72, 942, 1008, 1024], radius=22, fill=CARD2,
-                        outline=STROKE, width=2)
-    text(d, (96, 968), "Living Room TV", font(F_REG, 26), TEXT)
-    text(d, (72, 1050), "Type", font(F_REG, 24), MUTED)
-    text(d, (200, 1050), "TV", font(F_SEMI, 25), TEXT)
-    button(d, (72, 1096, 1008, 1184), "Save as device", ACCENT, DARK, 26,
-           font(F_SEMI, 28))
-    text(d, (72, 1210), "Type is a label. Aircon/LED still use TV-style codes;",
+    highlight_button(d, (44, 1838, 1036, 2010), "It worked", 44)
+    row = ["Previous", "Pause", "Skip 5"]
+    for i, label in enumerate(row):
+        x = 44 + i * 330
+        button(d, (x, 2038, x + 316, 2162), label, BTN, TEXT, 20,
+               font(F_SEMI, 32))
+    button(d, (44, 2190, 1036, 2322), "Stop", (26, 10, 14), RED, 22,
+           font(F_SEMI, 32), outline=(67, 25, 32))
+    text(d, (44, 2340), "Pause to stop sending. Previous replays; Skip 5 jumps ahead.",
+         font(F_REG, 20), (100, 100, 104))
+    home_bar(d)
+    return img
+
+
+def ac_screen():
+    img = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(img)
+    status_bar(d)
+    top_bar(img, d, "Air Conditioner  \u00B7  93 remotes")
+    now_card(img, d, "Bedroom AC", "Air Conditioner  \u00B7  Haier \u2014 HPD10XCM-LW",
+             "Tap the menu to change category, or the gear to name and save devices.")
+
+    card(d, (40, 582, 1040, 1370))
+    tracked(d, (76, 618), "CONTROLS", font(F_SEMI, 21), MUTED, 5)
+    highlight_button(d, (76, 656, 1004, 768), "POWER", 40)
+    button(d, (76, 786, 532, 846), "POWER \u00D72", BTN, TEXT, 18, font(F_SEMI, 23))
+    button(d, (548, 786, 1004, 846), "POWER OFF", BTN, RED, 18, font(F_SEMI, 23))
+    text(d, (76, 870), "Some ACs use separate On/Off codes; POWER \u00D72 helps",
          font(F_REG, 21), MUTED)
-    text(d, (72, 1240), "full aircon state frames are not included.",
+    text(d, (76, 900), "units that ignore a single frame.", font(F_REG, 21), MUTED)
+
+    d.text((76, 952), "BASICS", font=font(F_SEMI, 24), fill=TEXT, anchor="la")
+    page_dots(d, 1004, 946, 4, 1)
+    labels = [
+        ["Temp +", "Temp \u2212", "Mode"],
+        ["Fan", "Swing", "Light"],
+        ["Timer", "Sleep", None],
+    ]
+    for r, row in enumerate(labels):
+        y = 994 + r * 100
+        for c, label in enumerate(row):
+            if label is None:
+                continue
+            x = 76 + c * 312
+            button(d, (x, y, x + 300, y + 88), label, BTN, TEXT, 20,
+                   font(F_SEMI, 29))
+    page_row(d, 1298, "Buttons appear only when the profile has them")
+
+    card(d, (40, 1388, 1040, 1678))
+    tracked(d, (76, 1422), "AIRCON NOTES", font(F_SEMI, 20), TEXT, 5)
+    text(d, (76, 1466), "Codes are included per button. Temperature/mode may set a",
+         font(F_REG, 21), MUTED)
+    text(d, (76, 1498), "captured state, not a step.", font(F_REG, 21), MUTED)
+    text(d, (76, 1544), "If your model is missing, its protocol is not in the database.",
+         font(F_REG, 21), MUTED)
+    text(d, (76, 1584), "Try POWER \u00D72 or POWER OFF for units that miss a frame.",
          font(F_REG, 21), MUTED)
 
-    card(d, (40, 1468, 1040, 1815))
-    tracked(d, (72, 1504), "IR & SCAN", font(F_SEMI, 22), ACCENT, 4)
-    rows = [("IR boost", "Strong — 2 repeats"), ("Scan speed", "Normal — 2 s")]
-    y = 1554
-    for left, right in rows:
-        text(d, (72, y), left, font(F_REG, 25), MUTED)
-        text(d, (380, y), right, font(F_SEMI, 25), TEXT)
-        y += 72
-    text(d, (72, 1716), "Repeats volume/channel presses. Power, OK and navigation",
-         font(F_REG, 21), MUTED)
-    text(d, (72, 1746), "are sent once so they cannot double-fire.",
-         font(F_REG, 21), MUTED)
-
-    card(d, (40, 1855, 1040, 2190))
-    tracked(d, (72, 1895), "LEARN FROM ORIGINAL REMOTE", font(F_SEMI, 22), ACCENT, 4)
-    text(d, (72, 1939), "This phone only transmits IR. Use an IR receiver",
-         font(F_REG, 23), MUTED)
-    text(d, (72, 1973), "with an ESP32 to capture and import raw .ir codes.",
-         font(F_REG, 23), MUTED)
-
-    text(d, (540, 2340), "made by poging kyle", font(F_REG, 23), MUTED, "mm")
+    card(d, (40, 1716, 1040, 2070))
+    text(d, (76, 1752), "Find a working code", font(F_BLACK, 39), TEXT)
+    text(d, (76, 1812), "Same scanner as TV: Last 5, Previous and Pause.",
+         font(F_REG, 22), MUTED)
+    button(d, (76, 1866, 1004, 1966), "Find code", (242, 242, 247), DARK, 22,
+           font(F_SEMI, 34))
+    text(d, (76, 1998), "It worked saves the match to your AC.",
+         font(F_REG, 21), (100, 100, 104))
+    text(d, (76, 2140), "Codes: Flipper-IRDB (CC0). IR only \u2014 no network permission.",
+         font(F_REG, 20), (100, 100, 104))
+    home_bar(d)
     return img
 
 
 def draw_banner():
     w, h = 1600, 560
-    img = Image.new("RGB", (w, h), BG_TOP)
-    img.paste(vgrad((w, h), BG_TOP, BG_MID, BG_BOT), (0, 0))
-    glow = Image.new("RGB", (w, h), (0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse([-180, -220, 620, 500], fill=(8, 70, 90))
-    gd.ellipse([980, 120, 1760, 820], fill=(44, 36, 110))
-    glow = glow.filter(ImageFilter.GaussianBlur(140))
-    img = Image.blend(img, Image.blend(img, glow, 0.0), 0.0)
-    # screen blend
-    img = Image.blend(img, Image.composite(glow, img, glow.convert("L")), 0.35)
-
+    img = glow_bg(w, h)
     icon = logo(150, 42)
     img.paste(icon, (96, 190), icon)
     d = ImageDraw.Draw(img)
     d.text((292, 170), "IR Voider", font=font(F_BLACK, 104), fill=TEXT)
     d.text((300, 292), "The offline IR remote for Android phones.",
            font=font(F_REG, 34), fill=MUTED)
-    d.text((300, 348), "39 device categories  ·  1,502 remotes  ·  no internet",
-           font=font(F_SEMI, 27), fill=ACCENT)
-    d.text((300, 400), "Phone only  ·  Android 6.0+  ·  built-in IR blaster required",
+    d.text((300, 348), "39 categories  \u00B7  1,502 remotes  \u00B7  scanner history  \u00B7  no internet",
+           font=font(F_SEMI, 27), fill=CYAN)
+    d.text((300, 400), "Phone only  \u00B7  Android 6.0+  \u00B7  built-in IR blaster required",
            font=font(F_REG, 24), fill=MUTED)
+    chips = ["SCANNER + LAST 5", "SWIPEABLE PAGES", "AIRCON CONTROLS", "IR OVERRIDE"]
+    y = 170
+    for label in chips:
+        draw_chip = font(F_SEMI, 21)
+        wpx = d.textlength(label, font=draw_chip) + 32
+        d.rounded_rectangle([1130, y, 1130 + wpx, y + 46], radius=23,
+                            fill=(10, 10, 10), outline=STROKE, width=2)
+        d.ellipse([1148, y + 18, 1158, y + 28], fill=CYAN)
+        d.text((1170, y + 12), label, font=draw_chip, fill=TEXT)
+        y += 62
     d.text((1504, 500), "made by poging kyle", font=font(F_REG, 22),
-           fill=(100, 116, 139), anchor="ra")
+           fill=(100, 100, 104), anchor="ra")
     return img
 
 
 def draw_social():
     w, h = 1280, 640
-    img = Image.new("RGB", (w, h), BG_TOP)
-    img.paste(vgrad((w, h), BG_TOP, BG_MID, BG_BOT), (0, 0))
-    glow = Image.new("RGB", (w, h), (0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse([-140, -160, 520, 460], fill=(8, 70, 90))
-    gd.ellipse([820, 120, 1440, 760], fill=(44, 36, 110))
-    glow = glow.filter(ImageFilter.GaussianBlur(120))
-    img = Image.blend(img, Image.composite(glow, img, glow.convert("L")), 0.35)
-
+    img = glow_bg(w, h)
     icon = logo(138, 38)
     img.paste(icon, (84, 250), icon)
     d = ImageDraw.Draw(img)
     d.text((258, 196), "IR Voider", font=font(F_BLACK, 92), fill=TEXT)
     d.text((264, 312), "The offline IR remote for Android phones.",
            font=font(F_REG, 30), fill=MUTED)
-    d.text((264, 362), "39 device categories  ·  1,502 remotes  ·  no internet",
-           font=font(F_SEMI, 24), fill=ACCENT)
-    d.text((264, 406), "Phone only  ·  Android 6.0+  ·  built-in IR blaster",
+    d.text((264, 362), "39 categories  \u00B7  1,502 remotes  \u00B7  scanner + AC pages  \u00B7  no internet",
+           font=font(F_SEMI, 24), fill=CYAN)
+    d.text((264, 406), "Phone only  \u00B7  Android 6.0+  \u00B7  built-in IR blaster",
            font=font(F_REG, 22), fill=MUTED)
     d.text((1196, 582), "made by poging kyle", font=font(F_REG, 20),
-           fill=(100, 116, 139), anchor="ra")
+           fill=(100, 100, 104), anchor="ra")
     return img
 
 
 def draw_feature():
     w, h = 1024, 500
-    img = Image.new("RGB", (w, h), BG_TOP)
-    img.paste(vgrad((w, h), BG_TOP, BG_MID, BG_BOT), (0, 0))
-    glow = Image.new("RGB", (w, h), (0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse([-120, -140, 420, 360], fill=(8, 70, 90))
-    gd.ellipse([700, 120, 1180, 600], fill=(44, 36, 110))
-    glow = glow.filter(ImageFilter.GaussianBlur(100))
-    img = Image.blend(img, Image.composite(glow, img, glow.convert("L")), 0.35)
+    img = glow_bg(w, h)
     icon = logo(112, 30)
     img.paste(icon, (64, 194), icon)
     d = ImageDraw.Draw(img)
     d.text((204, 150), "IR Voider", font=font(F_BLACK, 72), fill=TEXT)
     d.text((208, 250), "The offline IR remote for Android phones.",
            font=font(F_REG, 24), fill=MUTED)
-    d.text((208, 292), "39 device categories  ·  1,502 remotes  ·  no internet",
-           font=font(F_SEMI, 19), fill=ACCENT)
-    d.text((208, 330), "Phone only  ·  Android 6.0+  ·  built-in IR blaster",
+    d.text((208, 292), "39 categories  \u00B7  1,502 remotes  \u00B7  scanner + AC pages  \u00B7  no internet",
+           font=font(F_SEMI, 18), fill=CYAN)
+    d.text((208, 330), "Phone only  \u00B7  Android 6.0+  \u00B7  built-in IR blaster",
            font=font(F_REG, 17), fill=MUTED)
     d.text((960, 460), "made by poging kyle", font=font(F_REG, 16),
-           fill=(100, 116, 139), anchor="ra")
+           fill=(100, 100, 104), anchor="ra")
     return img
 
 
@@ -443,54 +438,56 @@ def phone_frame(screen):
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, sw - 1, sh - 1], radius=44, fill=255)
     frame = Image.new("RGBA", (sw + 28, sh + 28), (0, 0, 0, 0))
     fd = ImageDraw.Draw(frame)
-    fd.rounded_rectangle([0, 0, sw + 27, sh + 27], radius=56, fill=(10, 15, 24, 255),
-                         outline=(42, 58, 85, 255), width=3)
+    fd.rounded_rectangle([0, 0, sw + 27, sh + 27], radius=56, fill=(8, 8, 8, 255),
+                         outline=(43, 43, 46, 255), width=3)
     frame.paste(scr, (14, 14), mask)
-    # punch-hole camera
-    fd.ellipse([sw // 2 + 4, 28, sw // 2 + 24, 48], fill=(5, 7, 13, 255))
+    fd.ellipse([sw // 2 + 4, 28, sw // 2 + 24, 48], fill=(0, 0, 0, 255))
     return frame
 
 
-def draw_composite(home, more, devices):
+def draw_composite(remote, scanner, ac):
     w, h = 2600, 1920
-    img = Image.new("RGB", (w, h), BG_TOP)
-    img.paste(vgrad((w, h), BG_TOP, BG_MID, BG_BOT), (0, 0))
+    img = glow_bg(w, h)
     d = ImageDraw.Draw(img)
-    d.text((90, 70), "IR Voider — UI preview", font=font(F_BLACK, 58), fill=TEXT)
-    d.text((92, 146), "Illustrative preview of the v1.0 layout.",
+    d.text((90, 70), "IR Voider \u2014 UI preview", font=font(F_BLACK, 58), fill=TEXT)
+    d.text((92, 146), "v1.4  \u00B7  illustrative layout from the app's palette and controls.",
            font=font(F_REG, 28), fill=MUTED)
 
-    screens = [home, more, devices]
-    labels = ["Remote", "More", "Devices"]
+    screens = [remote, scanner, ac]
+    labels = ["Remote", "Scanner", "Air conditioner"]
     xs = [80, 940, 1800]
     for x, scr, label in zip(xs, screens, labels):
         frame = phone_frame(scr)
         img.paste(frame, (x, 220), frame)
-        d.text((x + 374, 1850), label, font=font(F_SEMI, 30),
-               fill=ACCENT, anchor="mm")
-    d.text((1300, 1886), "UI preview generated from the app's palette and layout",
-           font=font(F_REG, 20), fill=(100, 116, 139), anchor="mm")
+        d.text((x + 374, 1868), label, font=font(F_SEMI, 30),
+               fill=TEXT, anchor="mm")
+    d.text((1300, 1900), "Actual buttons depend on the selected remote profile.",
+           font=font(F_REG, 20), fill=(100, 100, 104), anchor="mm")
     return img
 
 
 def main():
     os.makedirs("docs/images", exist_ok=True)
-    home = draw_home()
-    more = draw_more(home)
-    devices = draw_devices()
+    os.makedirs("docs/play", exist_ok=True)
+    remote = remote_screen()
+    scanner = scanner_screen()
+    ac = ac_screen()
     banner = draw_banner()
-    composite = draw_composite(home, more, devices)
+    composite = draw_composite(remote, scanner, ac)
     social = draw_social()
     feature = draw_feature()
-    home.save("docs/images/home.png")
-    more.save("docs/images/more.png")
-    devices.save("docs/images/devices.png")
+
+    for old in ("home.png", "more.png", "devices.png"):
+        path = os.path.join("docs/images", old)
+        if os.path.exists(path):
+            os.remove(path)
+
     banner.save("docs/images/banner.png")
     composite.save("docs/images/preview.png")
     social.save("docs/images/social-preview.png")
-    os.makedirs("docs/play", exist_ok=True)
     feature.save("docs/play/feature-graphic.png")
-    print("Wrote docs/images/*.png and docs/play/feature-graphic.png")
+    print("Wrote docs/images/banner.png, preview.png, social-preview.png")
+    print("Wrote docs/play/feature-graphic.png")
 
 
 if __name__ == "__main__":
