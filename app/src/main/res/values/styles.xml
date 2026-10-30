@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/warm_black</item>
+        <item name="android:colorAccent">@color/warm_ember</item>
+        <item name="android:colorPrimary">@color/warm_ember</item>
+        <item name="android:colorPrimaryDark">@color/warm_black</item>
+        <item name="android:colorControlActivated">@color/warm_ember</item>
+        <item name="android:colorControlHighlight">#33E8753D</item>
+        <item name="android:colorControlNormal">@color/warm_ash</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

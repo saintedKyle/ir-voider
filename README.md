@@ -117,7 +117,7 @@ requests are not accepted.
   <img src="docs/images/preview.png" alt="IR Voider UI preview: remote, scanner and air-conditioner screens" width="100%">
 </p>
 
-<p align="center"><em>Illustrative v1.4 UI preview. Buttons depend on the selected remote profile; pages are swipeable.</em></p>
+<p align="center"><em>Illustrative warm-dark v1.4 UI preview. Buttons depend on the selected remote profile; pages are swipeable.</em></p>
 
 ## Docs
 

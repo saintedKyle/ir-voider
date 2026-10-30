@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="warm_black">#0A0908</color>
+    <color name="warm_card">#14110F</color>
+    <color name="warm_graphite">#2C2824</color>
+    <color name="warm_ash">#8B8176</color>
+    <color name="warm_bone">#E9E0D4</color>
+    <color name="warm_ember">#E8753D</color>
+    <color name="warm_copper">#B07D52</color>
+    <color name="ic_launcher_background">#12100E</color>
+</resources>

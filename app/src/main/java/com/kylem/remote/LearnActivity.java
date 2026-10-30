@@ -45,14 +45,14 @@ public class LearnActivity extends Activity {
 
     private static final int PICK_FILE = 101;
 
-    private static final int BG = 0xFF000000;
-    private static final int CARD = 0xFF0A0A0A;
-    private static final int BTN = 0xFF101010;
-    private static final int STROKE = 0xFF262626;
-    private static final int ACCENT = 0xFFF2F2F7;
-    private static final int TEXT = 0xFFF5F5F7;
-    private static final int MUTED = 0xFF8E8E93;
-    private static final int DARK = 0xFF000000;
+    private static final int BG = 0xFF0A0908;
+    private static final int CARD = 0xFF14110F;
+    private static final int BTN = 0xFF1A1715;
+    private static final int STROKE = 0xFF2C2824;
+    private static final int ACCENT = 0xFFE8753D;
+    private static final int TEXT = 0xFFE9E0D4;
+    private static final int MUTED = 0xFF8B8176;
+    private static final int DARK = 0xFF0A0908;
 
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
@@ -178,13 +178,13 @@ public class LearnActivity extends Activity {
         bg.setColor(color);
         bg.setCornerRadius(dp(20));
         bg.setStroke(dp(1), STROKE);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), bg, null));
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), bg, null));
         return b;
     }
 
     private GradientDrawable appBackground() {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(BG);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{BG, 0xFF120E0B});
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -202,7 +202,7 @@ public class LearnActivity extends Activity {
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.addView(text("IR Voider", 23, TEXT, true), new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        Button done = button("Done", ACCENT, 0xFF06263A);
+        Button done = button("Done", ACCENT, DARK);
         done.setOnClickListener(v -> finish());
         top.addView(done, new LinearLayout.LayoutParams(dp(84), dp(42)));
         root.addView(top);
@@ -230,7 +230,7 @@ public class LearnActivity extends Activity {
 
         nameInput = new EditText(this);
         nameInput.setHint("Remote name (optional)");
-        nameInput.setHintTextColor(0xFF64748B);
+        nameInput.setHintTextColor(MUTED);
         nameInput.setTextColor(TEXT);
         nameInput.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
         LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(
@@ -238,7 +238,7 @@ public class LearnActivity extends Activity {
         inputLp.topMargin = dp(10);
         importCard.addView(nameInput, inputLp);
 
-        Button pick = button("Choose .ir file", ACCENT, 0xFF06263A);
+        Button pick = button("Choose .ir file", ACCENT, DARK);
         pick.setOnClickListener(v -> pickFile());
         LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
@@ -264,7 +264,7 @@ public class LearnActivity extends Activity {
                 13, MUTED, false));
         addCard(root, capture);
 
-        TextView footer = text("made by poging kyle", 12, 0xFF64748B, false);
+        TextView footer = text("made by poging kyle", 12, MUTED, false);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(0, dp(26), 0, dp(6));
         root.addView(footer);

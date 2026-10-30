@@ -36,14 +36,14 @@ import java.util.UUID;
 
 public class ConfigsActivity extends Activity {
 
-    private static final int BG = 0xFF000000;
-    private static final int CARD = 0xFF0A0A0A;
-    private static final int BTN = 0xFF101010;
-    private static final int STROKE = 0xFF262626;
-    private static final int ACCENT = 0xFFF2F2F7;
-    private static final int TEXT = 0xFFF5F5F7;
-    private static final int MUTED = 0xFF8E8E93;
-    private static final int DARK = 0xFF000000;
+    private static final int BG = 0xFF0A0908;
+    private static final int CARD = 0xFF14110F;
+    private static final int BTN = 0xFF1A1715;
+    private static final int STROKE = 0xFF2C2824;
+    private static final int ACCENT = 0xFFE8753D;
+    private static final int TEXT = 0xFFE9E0D4;
+    private static final int MUTED = 0xFF8B8176;
+    private static final int DARK = 0xFF0A0908;
 
     private static final String[] TYPES = {
             "TV", "Aircon", "LED", "Projector", "Fan", "Soundbar", "Other"
@@ -116,7 +116,7 @@ public class ConfigsActivity extends Activity {
         bg.setColor(color);
         bg.setCornerRadius(dp(20));
         bg.setStroke(dp(1), STROKE);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), bg, null));
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), bg, null));
         return b;
     }
 
@@ -134,8 +134,8 @@ public class ConfigsActivity extends Activity {
     }
 
     private GradientDrawable appBackground() {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(BG);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{BG, 0xFF120E0B});
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -154,7 +154,7 @@ public class ConfigsActivity extends Activity {
         TextView title = text("IR Voider", 24, TEXT, true);
         top.addView(title, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        Button done = button("Done", ACCENT, 0xFF06263A);
+        Button done = button("Done", ACCENT, DARK);
         done.setOnClickListener(v -> finish());
         top.addView(done, new LinearLayout.LayoutParams(dp(84), dp(42)));
         root.addView(top);
@@ -193,7 +193,7 @@ public class ConfigsActivity extends Activity {
 
         nameInput = new EditText(this);
         nameInput.setHint("Name, e.g. Living Room TV");
-        nameInput.setHintTextColor(0xFF64748B);
+        nameInput.setHintTextColor(MUTED);
         nameInput.setTextColor(TEXT);
         nameInput.setInputType(InputType.TYPE_CLASS_TEXT);
         nameInput.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
@@ -207,7 +207,7 @@ public class ConfigsActivity extends Activity {
         typeSpinner.setAdapter(ta);
         addCard.addView(row("Type", typeSpinner));
 
-        Button add = button("Save as device", ACCENT, 0xFF06263A);
+        Button add = button("Save as device", ACCENT, DARK);
         add.setOnClickListener(v -> addDevice());
         LinearLayout.LayoutParams addLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
@@ -324,11 +324,11 @@ public class ConfigsActivity extends Activity {
 
         TextView credit = text(
                 "Codes: Flipper-IRDB (CC0). No internet permission.", 11,
-                0xFF64748B, false);
+                MUTED, false);
         credit.setPadding(dp(4), dp(4), 0, 0);
         root.addView(credit);
 
-        TextView footer = text("made by poging kyle", 12, 0xFF64748B, false);
+        TextView footer = text("made by poging kyle", 12, MUTED, false);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(0, dp(26), 0, dp(6));
         root.addView(footer);
@@ -374,7 +374,7 @@ public class ConfigsActivity extends Activity {
         });
         Button rename = button("Rename", BTN, TEXT);
         rename.setOnClickListener(v -> renameDevice(d));
-        Button delete = button("Delete", 0xFF7F1D1D, Color.WHITE);
+        Button delete = button("Delete", 0xFF2B1411, 0xFFE06B55);
         delete.setOnClickListener(v -> deleteDevice(d));
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);

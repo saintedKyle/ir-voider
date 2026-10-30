@@ -6,9 +6,10 @@
 
     <application
         android:label="IR Voider"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="false"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/AppTheme">
         <activity
             android:name=".LearnActivity"
             android:exported="false"

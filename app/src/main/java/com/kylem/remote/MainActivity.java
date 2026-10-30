@@ -67,17 +67,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
 
-    private static final int BG = 0xFF000000;
-    private static final int CARD = 0xFF0A0A0A;
-    private static final int BTN = 0xFF101010;
-    private static final int STROKE = 0xFF262626;
-    private static final int ACCENT = 0xFFFFFFFF;
-    private static final int ACCENT2 = 0xFF22D3EE;
-    private static final int TEXT = 0xFFF5F5F7;
-    private static final int MUTED = 0xFF8E8E93;
-    private static final int RED = 0xFFFF4D6D;
-    private static final int GREEN = 0xFF30D158;
-    private static final int DARK = 0xFF000000;
+    private static final int BG = 0xFF0A0908;
+    private static final int CARD = 0xFF14110F;
+    private static final int BTN = 0xFF1A1715;
+    private static final int STROKE = 0xFF2C2824;
+    private static final int ACCENT = 0xFFE8753D;
+    private static final int ACCENT2 = 0xFFB07D52;
+    private static final int TEXT = 0xFFE9E0D4;
+    private static final int MUTED = 0xFF8B8176;
+    private static final int RED = 0xFFE06B55;
+    private static final int GREEN = 0xFFB7C48A;
+    private static final int DARK = 0xFF0A0908;
 
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
@@ -340,14 +340,14 @@ public class MainActivity extends Activity {
         b.setText(label);
         b.setAllCaps(false);
         b.setTextSize(textSize);
-        b.setTextColor(Color.WHITE);
+        b.setTextColor(TEXT);
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(color);
         bg.setCornerRadius(dp(20));
         bg.setStroke(dp(1), STROKE);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), bg, null));
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), bg, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
         return b;
     }
@@ -361,7 +361,7 @@ public class MainActivity extends Activity {
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFFF2F2F7);
+        bg.setColor(ACCENT);
         bg.setCornerRadius(dp(22));
         b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22000000), bg, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
@@ -393,8 +393,8 @@ public class MainActivity extends Activity {
     }
 
     private GradientDrawable appBackground() {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(BG);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{BG, 0xFF120E0B});
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -427,7 +427,7 @@ public class MainActivity extends Activity {
         titles.setOrientation(LinearLayout.VERTICAL);
         titles.addView(text("IR Voider", 22, TEXT, true));
         categoryLabel = text("", 10, ACCENT, false);
-        categoryLabel.setBackground(pill(0xFF0A0A0A, 0xFF333333));
+        categoryLabel.setBackground(pill(CARD, STROKE));
         categoryLabel.setPadding(dp(9), dp(3), dp(9), dp(3));
         LinearLayout.LayoutParams catLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -457,10 +457,10 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         boolean hasIr = ir != null && ir.hasIrEmitter();
         TextView irChip = text(hasIr ? "IR READY" : "NO IR", 9,
-                hasIr ? 0xFF6EE7B7 : 0xFFFDA4AF, true);
+                hasIr ? 0xFFD6A36A : 0xFFF08A76, true);
         irChip.setLetterSpacing(0.08f);
-        irChip.setBackground(pill(hasIr ? 0xFF0C2E24 : 0xFF3A0D18,
-                hasIr ? 0xFF14532D : 0xFF7F1D1D));
+        irChip.setBackground(pill(hasIr ? 0xFF2B1C12 : 0xFF2A1410,
+                hasIr ? 0xFF6A4A2F : 0xFF6B2D22));
         irChip.setPadding(dp(8), dp(3), dp(8), dp(3));
         nowRow.addView(irChip);
         currentCard.addView(nowRow);
@@ -535,7 +535,7 @@ public class MainActivity extends Activity {
 
         TextView credit = text(
                 "Codes: Flipper-IRDB (CC0). IR only \u2014 no network permission.",
-                11, 0xFF64748B, false);
+                11, MUTED, false);
         credit.setPadding(dp(4), dp(4), 0, 0);
         root.addView(credit);
 
@@ -545,10 +545,10 @@ public class MainActivity extends Activity {
         shell.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         View divider = new View(this);
-        divider.setBackgroundColor(0x1AFFFFFF);
+        divider.setBackgroundColor(0x22E9E0D4);
         shell.addView(divider, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-        TextView footer = text("made by poging kyle", 11, 0xFF64748B, false);
+        TextView footer = text("made by poging kyle", 11, MUTED, false);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(0, dp(12), 0, dp(12));
         shell.addView(footer, new LinearLayout.LayoutParams(
@@ -654,7 +654,7 @@ public class MainActivity extends Activity {
             GradientDrawable bg = new GradientDrawable();
             bg.setColor(active ? ACCENT : BTN);
             bg.setCornerRadius(dp(12));
-            b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), bg, null));
+            b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33E9E0D4), bg, null));
             b.setTextColor(active ? DARK : MUTED);
             b.setTypeface(Typeface.create("sans-serif-medium",
                     active ? Typeface.BOLD : Typeface.NORMAL));
@@ -842,7 +842,7 @@ public class MainActivity extends Activity {
                 TextView row = text(b.name, 15, active ? ACCENT : TEXT, active);
                 row.setPadding(dp(10), dp(13), dp(10), dp(13));
                 GradientDrawable rowBg = new GradientDrawable();
-                rowBg.setColor(active ? 0xFF141414 : 0x00000000);
+                rowBg.setColor(active ? 0xFF211812 : 0x00000000);
                 rowBg.setCornerRadius(dp(12));
                 row.setBackground(rowBg);
                 final int index = i;
@@ -1057,7 +1057,7 @@ public class MainActivity extends Activity {
         progress.setMax(1);
         progress.setProgress(0);
         progress.setProgressTintList(ColorStateList.valueOf(ACCENT));
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(0xFF262626));
+        progress.setProgressBackgroundTintList(ColorStateList.valueOf(STROKE));
         LinearLayout.LayoutParams progressLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(8));
         progressLp.topMargin = dp(28);
@@ -1076,7 +1076,7 @@ public class MainActivity extends Activity {
         historyBox.setOrientation(LinearLayout.VERTICAL);
         historyBox.setPadding(dp(14), dp(10), dp(14), dp(10));
         GradientDrawable hbg = new GradientDrawable();
-        hbg.setColor(0xFF0A0A0A);
+        hbg.setColor(CARD);
         hbg.setCornerRadius(dp(16));
         hbg.setStroke(dp(1), STROKE);
         historyBox.setBackground(hbg);
@@ -1117,7 +1117,7 @@ public class MainActivity extends Activity {
         row.addView(pauseButton, p2);
         row.addView(skip, p3);
         root.addView(row);
-        Button stop = styledButton("Stop", 0xFF1A0A0E, 15);
+        Button stop = styledButton("Stop", 0xFF26110D, 15);
         stop.setTextColor(RED);
         stop.setOnClickListener(v -> stopAutoFind("Stopped."));
         LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(
@@ -1135,7 +1135,7 @@ public class MainActivity extends Activity {
         scannerDialog.show();
         Window window = scannerDialog.getWindow();
         if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+            window.setBackgroundDrawable(new ColorDrawable(BG));
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT);
         }
@@ -1702,7 +1702,7 @@ public class MainActivity extends Activity {
 
         View handle = new View(this);
         GradientDrawable hb = new GradientDrawable();
-        hb.setColor(0xFF334155);
+        hb.setColor(0xFF6A5A4B);
         hb.setCornerRadius(dp(3));
         handle.setBackground(hb);
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(dp(44), dp(5));
@@ -1804,9 +1804,9 @@ public class MainActivity extends Activity {
         chip.setPadding(dp(12), dp(11), dp(12), dp(11));
         boolean active = c.name.equals(category.name);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(active ? 0xFF141414 : 0xFF0A0A0A);
+        bg.setColor(active ? 0xFF211812 : CARD);
         bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), active ? ACCENT : 0xFF2A2A2A);
+        bg.setStroke(dp(1), active ? ACCENT : STROKE);
         chip.setBackground(bg);
         TextView name = text(c.name, 13, active ? ACCENT : TEXT, true);
         name.setSingleLine(true);
@@ -1828,9 +1828,9 @@ public class MainActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF0A0A0A);
+        bg.setColor(CARD);
         bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), 0xFF2A2A2A);
+        bg.setStroke(dp(1), STROKE);
         row.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);

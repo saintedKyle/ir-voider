@@ -9,18 +9,18 @@ import os
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 W, H = 1080, 2400
-BG = (0, 0, 0)
-CARD = (10, 10, 10)
-CARD2 = (16, 16, 16)
-STROKE = (38, 38, 38)
-BTN = (16, 16, 16)
-ACCENT = (255, 255, 255)
-CYAN = (34, 211, 238)
-TEXT = (245, 245, 247)
-MUTED = (142, 142, 147)
-RED = (255, 77, 109)
-GREEN = (48, 209, 88)
-DARK = (0, 0, 0)
+BG = (10, 9, 8)
+CARD = (20, 17, 15)
+CARD2 = (26, 22, 19)
+STROKE = (44, 40, 36)
+BTN = (26, 22, 19)
+ACCENT = (232, 117, 61)
+CYAN = (176, 125, 82)
+TEXT = (233, 224, 212)
+MUTED = (139, 129, 118)
+RED = (224, 107, 85)
+GREEN = (183, 196, 138)
+DARK = (10, 9, 8)
 
 F_BLACK = "C:/Windows/Fonts/segoeuib.ttf"
 F_SEMI = "C:/Windows/Fonts/seguisb.ttf"
@@ -37,8 +37,8 @@ def glow_bg(w, h):
     img = Image.new("RGB", (w, h), BG)
     glow = Image.new("RGB", (w, h), (0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse([-220, -260, 680, 560], fill=(0, 54, 64))
-    gd.ellipse([w - 760, h - 580, w + 300, h + 240], fill=(8, 34, 42))
+    gd.ellipse([-220, -260, 680, 560], fill=(66, 32, 18))
+    gd.ellipse([w - 760, h - 580, w + 300, h + 240], fill=(40, 27, 17))
     glow = glow.filter(ImageFilter.GaussianBlur(150))
     return Image.blend(img, Image.composite(glow, img, glow.convert("L")), 0.30)
 
@@ -103,7 +103,7 @@ def button(draw, box, label, fill=BTN, color=TEXT, radius=20, f=None, outline=ST
 
 
 def highlight_button(draw, box, label, size=40, radius=22):
-    draw.rounded_rectangle(box, radius=radius, fill=(242, 242, 247))
+    draw.rounded_rectangle(box, radius=radius, fill=ACCENT)
     draw.text(((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), label,
               font=font(F_SEMI, size), fill=DARK, anchor="mm")
 
@@ -164,8 +164,8 @@ def top_bar(img, d, category):
 def now_card(img, d, name, meta, note):
     card(d, (40, 246, 1040, 552))
     tracked(d, (76, 286), "NOW USING", font(F_SEMI, 24), TEXT, 5)
-    pill(d, 846, 276, "IR READY", font(F_SEMI, 21), (110, 231, 183),
-         (12, 46, 36), (20, 83, 45), 14, 4)
+    pill(d, 846, 276, "IR READY", font(F_SEMI, 21), (216, 163, 106),
+         (43, 28, 18), (106, 74, 47), 14, 4)
     text(d, (76, 336), name, font(F_BLACK, 50), TEXT)
     text(d, (76, 408), meta, font(F_REG, 27), MUTED)
     text(d, (76, 456), note, font(F_REG, 23), MUTED)
@@ -249,10 +249,10 @@ def remote_screen():
         x = 190 + i * 194
         active = i == 2
         button(d, (x, 1706, x + 170, 1764), label,
-               (242, 242, 247) if active else BTN,
+               ACCENT if active else BTN,
                DARK if active else MUTED, 18, font(F_SEMI, 24))
 
-    button(d, (76, 1800, 1004, 1900), "Find code", (242, 242, 247), DARK, 22,
+    button(d, (76, 1800, 1004, 1900), "Find code", ACCENT, DARK, 22,
            font(F_SEMI, 34))
     d.text((76, 1934), "Scanner keeps the last five codes it tried.",
            font=font(F_REG, 22), fill=TEXT, anchor="la")
@@ -275,7 +275,7 @@ def scanner_screen():
     text(d, (44, 232), "Air Conditioner  \u00B7  92 codes", font(F_REG, 30), MUTED)
 
     d.rounded_rectangle([44, 302, 1036, 314], radius=7, fill=(24, 24, 24))
-    d.rounded_rectangle([44, 302, 44 + int(992 * 0.13), 314], radius=7, fill=TEXT)
+    d.rounded_rectangle([44, 302, 44 + int(992 * 0.13), 314], radius=7, fill=ACCENT)
     text(d, (44, 334), "12 / 92", font(F_REG, 26), MUTED)
     text(d, (44, 382), "Haier \u2014 HPD10XCM-LW", font(F_BLACK, 62), TEXT)
     text(d, (44, 454), "Watch the device. When it reacts, tap It worked.",
@@ -357,7 +357,7 @@ def ac_screen():
     text(d, (76, 1752), "Find a working code", font(F_BLACK, 39), TEXT)
     text(d, (76, 1812), "Same scanner as TV: Last 5, Previous and Pause.",
          font(F_REG, 22), MUTED)
-    button(d, (76, 1866, 1004, 1966), "Find code", (242, 242, 247), DARK, 22,
+    button(d, (76, 1866, 1004, 1966), "Find code", ACCENT, DARK, 22,
            font(F_SEMI, 34))
     text(d, (76, 1998), "It worked saves the match to your AC.",
          font(F_REG, 21), (100, 100, 104))
@@ -438,8 +438,8 @@ def phone_frame(screen):
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, sw - 1, sh - 1], radius=44, fill=255)
     frame = Image.new("RGBA", (sw + 28, sh + 28), (0, 0, 0, 0))
     fd = ImageDraw.Draw(frame)
-    fd.rounded_rectangle([0, 0, sw + 27, sh + 27], radius=56, fill=(8, 8, 8, 255),
-                         outline=(43, 43, 46, 255), width=3)
+    fd.rounded_rectangle([0, 0, sw + 27, sh + 27], radius=56, fill=(16, 13, 11, 255),
+                         outline=(44, 40, 36, 255), width=3)
     frame.paste(scr, (14, 14), mask)
     fd.ellipse([sw // 2 + 4, 28, sw // 2 + 24, 48], fill=(0, 0, 0, 255))
     return frame
