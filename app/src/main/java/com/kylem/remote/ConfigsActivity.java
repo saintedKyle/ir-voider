@@ -12,6 +12,8 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
@@ -36,14 +38,22 @@ import java.util.UUID;
 
 public class ConfigsActivity extends Activity {
 
-    private static final int BG = 0xFF0A0908;
-    private static final int CARD = 0xFF14110F;
-    private static final int BTN = 0xFF1A1715;
-    private static final int STROKE = 0xFF2C2824;
-    private static final int ACCENT = 0xFFE8753D;
-    private static final int TEXT = 0xFFE9E0D4;
-    private static final int MUTED = 0xFF8B8176;
-    private static final int DARK = 0xFF0A0908;
+    private Palette palette;
+    private int BG, CARD, BTN, STROKE, ACCENT, TEXT, MUTED, RED, ON_ACCENT, RIPPLE;
+
+    private void loadPalette() {
+        palette = Palette.current(this);
+        BG = palette.bg;
+        CARD = palette.card;
+        BTN = palette.btn;
+        STROKE = palette.stroke;
+        ACCENT = palette.accent;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        RED = palette.warn;
+        ON_ACCENT = palette.onAccent;
+        RIPPLE = palette.ripple();
+    }
 
     private static final String[] TYPES = {
             "TV", "Aircon", "LED", "Projector", "Fan", "Soundbar", "Other"
@@ -55,6 +65,9 @@ public class ConfigsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        loadPalette();
+        setTheme(palette.light ? R.style.AppTheme_Light : R.style.AppTheme);
+        getWindow().setBackgroundDrawable(new ColorDrawable(BG));
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         if (Build.VERSION.SDK_INT >= 30) {
@@ -65,6 +78,7 @@ public class ConfigsActivity extends Activity {
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         }
+        Palette.applyStatusIcons(getWindow(), palette.light);
         buildUi();
     }
 
@@ -89,7 +103,7 @@ public class ConfigsActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
-        c.setBackground(Surface.raised(this, 28, CARD, STROKE, 0x18FFFFFF));
+        c.setBackground(Surface.raised(this, 28, CARD, STROKE, palette.gloss(0.09f)));
         Surface.elevate(c, 28, 5);
         return c;
     }
@@ -110,10 +124,12 @@ public class ConfigsActivity extends Activity {
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
         boolean hot = color == ACCENT;
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4),
-                Surface.raised(this, 20, color,
-                        hot ? Surface.darken(ACCENT, 0.42f) : Surface.lighten(STROKE, 0.22f),
-                        hot ? 0x3CFFFFFF : 0x24FFFFFF), null));
+        Drawable plate = hot
+                ? Surface.raised(this, 20, color, Surface.darken(ACCENT, 0.42f),
+                        palette.gloss(0.24f))
+                : Surface.raised(this, 20, color, palette.rim(), palette.gloss(0.14f));
+        b.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(hot ? 0x33000000 : RIPPLE), plate, null));
         Surface.elevate(b, 20, hot ? 5 : 2);
         Surface.sinkOnPress(b, hot ? 5 : 2);
         return b;
@@ -134,7 +150,7 @@ public class ConfigsActivity extends Activity {
 
     private GradientDrawable appBackground() {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{BG, 0xFF120E0B});
+                new int[]{BG, palette.bgBottom});
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -153,7 +169,7 @@ public class ConfigsActivity extends Activity {
         TextView title = text("IR Voider", 24, TEXT, true);
         top.addView(title, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        Button done = button("Done", ACCENT, DARK);
+        Button done = button("Done", ACCENT, ON_ACCENT);
         done.setOnClickListener(v -> finish());
         top.addView(done, new LinearLayout.LayoutParams(dp(84), dp(42)));
         root.addView(top);
@@ -206,7 +222,7 @@ public class ConfigsActivity extends Activity {
         typeSpinner.setAdapter(ta);
         addCard.addView(row("Type", typeSpinner));
 
-        Button add = button("Save as device", ACCENT, DARK);
+        Button add = button("Save as device", ACCENT, ON_ACCENT);
         add.setOnClickListener(v -> addDevice());
         LinearLayout.LayoutParams addLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
@@ -373,7 +389,7 @@ public class ConfigsActivity extends Activity {
         });
         Button rename = button("Rename", BTN, TEXT);
         rename.setOnClickListener(v -> renameDevice(d));
-        Button delete = button("Delete", 0xFF2B1411, 0xFFE06B55);
+        Button delete = button("Delete", Surface.blend(CARD, RED, 0.22f), RED);
         delete.setOnClickListener(v -> deleteDevice(d));
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);

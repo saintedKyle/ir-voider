@@ -181,4 +181,12 @@ public final class DeviceStore {
     public static void setScanDelayMs(Context c, int value) {
         prefs(c).edit().putInt("scanDelay", value).apply();
     }
+
+    public static int themeIndex(Context c) {
+        return prefs(c).getInt("theme", Palette.DEFAULT);
+    }
+
+    public static void setThemeIndex(Context c, int value) {
+        prefs(c).edit().putInt("theme", value).apply();
+    }
 }

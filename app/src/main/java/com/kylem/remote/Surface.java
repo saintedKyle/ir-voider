@@ -25,11 +25,19 @@ final class Surface {
     }
 
     static int lighten(int argb, float t) {
-        return mix(argb, 0xFFFFFFFF, t);
+        return blend(argb, 0xFFFFFFFF, t);
     }
 
     static int darken(int argb, float t) {
-        return mix(argb, 0xFF000000, t);
+        return blend(argb, 0xFF000000, t);
+    }
+
+    /** Tint one colour into another, for accents bleeding into warm neutrals. */
+    static int blend(int from, int to, float t) {
+        int r = (int) (Color.red(from) + (Color.red(to) - Color.red(from)) * t + 0.5f);
+        int g = (int) (Color.green(from) + (Color.green(to) - Color.green(from)) * t + 0.5f);
+        int b = (int) (Color.blue(from) + (Color.blue(to) - Color.blue(from)) * t + 0.5f);
+        return (from & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
     /** Raised plate from one flat hue: lit face, base, shaded underside. */
@@ -39,12 +47,13 @@ final class Surface {
 
     /**
      * Top-lit stops for shapes that need their own corner geometry. The lift scales with how bright
-     * the fill already is: a flat 18% wash turns a near-black key mid-grey, but reads as glass on ember.
+     * the fill already is: a flat 18% wash turns a near-black key mid-grey, but reads as glass on
+     * ember. Light surfaces get a gentler underside so they never go muddy.
      */
     static int[] lift(int base) {
-        float l = (0.2126f * Color.red(base) + 0.7152f * Color.green(base)
-                + 0.0722f * Color.blue(base)) / 255f;
-        return new int[]{lighten(base, 0.06f + 0.16f * l), base, darken(base, 0.34f)};
+        float l = Palette.luminance(base);
+        return new int[]{lighten(base, 0.06f + 0.16f * l), base,
+                darken(base, l > 0.7f ? 0.34f - (l - 0.7f) : 0.34f)};
     }
 
     /** Sunken track: dark at the top lip, light along the bottom edge. */
@@ -111,12 +120,5 @@ final class Surface {
             }
             return false;
         });
-    }
-
-    private static int mix(int from, int to, float t) {
-        int r = (int) (Color.red(from) + (Color.red(to) - Color.red(from)) * t + 0.5f);
-        int g = (int) (Color.green(from) + (Color.green(to) - Color.green(from)) * t + 0.5f);
-        int b = (int) (Color.blue(from) + (Color.blue(to) - Color.blue(from)) * t + 0.5f);
-        return (from & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 }

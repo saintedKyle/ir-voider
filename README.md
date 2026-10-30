@@ -48,6 +48,7 @@ this repository's Releases.
 - Searchable brands; scanner with **Last 5** history, Previous/Pause/Stop, and a
   confirmation before an all-brand scan.
 - Saved devices with custom names, IR boost / **Force mode**, diagnostics.
+- **Ten orange-family themes** — pick one under **≡ More → Appearance**.
 - Air-conditioner temperature, mode, fan and swing where the profile supports it.
 - Import raw `.ir` captures as learned remotes.
 - **IR override** for phones that report NO IR despite having an emitter.
@@ -56,6 +57,23 @@ this repository's Releases.
 Air conditioners include the buttons captured in the database. Raw AC frames can
 represent a fixed state rather than an incremental step. If your model is missing,
 its protocol is not in the database; a raw `.ir` capture can add your own buttons.
+
+## Look
+
+Nothing in the app is a flat fill. Buttons, cards, chips, the scanner track and
+the bottom sheet are shaded plates — lit top rim, body gradient, contact shadow —
+drawn in code, and they sink under a press. Ten presets move the accent along the
+ember-to-bronze arc; layout, type and warm neutrals never change.
+
+**≡ More → Appearance** switches themes instantly. Saved devices, IR settings and
+scanner history are untouched, and the choice is remembered on the phone.
+
+<p align="center">
+  <img src="docs/images/themes.png" alt="The ten orange-family themes: Ember Signal, Void Amber, Rust Signal, Copper Plate, Solar Flare, Ashen Coal, Hearth Glow, Bronze Dusk, OLED Void and Bone Ember" width="100%">
+</p>
+
+Nine run dark; **Bone Ember** inverts to a warm light surface for daylight, and
+**OLED Void** drops the background to true black.
 
 ## How IR works — and the limits
 
@@ -96,7 +114,9 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 The IR database can be regenerated with `python tools/build_db.py` after
 downloading [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) into
-`data/irdb_all/`.
+`data/irdb_all/`. The README artwork comes from `python
+tools/make_readme_images.py` and `python tools/make_theme_sheet.py`, which redraw
+the same shading maths in Pillow.
 
 ## License, forks and contributions
 
@@ -117,7 +137,7 @@ requests are not accepted.
   <img src="docs/images/preview.png" alt="IR Voider UI preview: remote, scanner and air-conditioner screens" width="100%">
 </p>
 
-<p align="center"><em>Illustrative warm-dark v1.4 UI preview. Buttons depend on the selected remote profile; pages are swipeable.</em></p>
+<p align="center"><em>Illustrative v1.4 UI preview — shaded plates, not flat fills. Buttons depend on the selected remote profile; pages are swipeable.</em></p>
 
 ## Docs
 

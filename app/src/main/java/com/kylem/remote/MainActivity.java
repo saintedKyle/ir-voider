@@ -69,17 +69,27 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
 
-    private static final int BG = 0xFF0A0908;
-    private static final int CARD = 0xFF14110F;
-    private static final int BTN = 0xFF1A1715;
-    private static final int STROKE = 0xFF2C2824;
-    private static final int ACCENT = 0xFFE8753D;
-    private static final int ACCENT2 = 0xFFB07D52;
-    private static final int TEXT = 0xFFE9E0D4;
-    private static final int MUTED = 0xFF8B8176;
-    private static final int RED = 0xFFE06B55;
-    private static final int GREEN = 0xFFB7C48A;
-    private static final int DARK = 0xFF0A0908;
+    private Palette palette;
+    private int BG, CARD, BTN, STROKE, ACCENT, ACCENT2, TEXT, MUTED, RED, GREEN, ON_ACCENT;
+    private int RIPPLE, ACTIVE;
+
+    /** Copies the chosen theme onto the short names the screens already speak. */
+    private void loadPalette() {
+        palette = Palette.current(this);
+        BG = palette.bg;
+        CARD = palette.card;
+        BTN = palette.btn;
+        STROKE = palette.stroke;
+        ACCENT = palette.accent;
+        ACCENT2 = palette.accent2;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        RED = palette.warn;
+        GREEN = palette.ok;
+        ON_ACCENT = palette.onAccent;
+        RIPPLE = palette.ripple();
+        ACTIVE = Surface.blend(CARD, ACCENT, 0.10f);
+    }
 
     private static final String[] BUTTON_ORDER = {
             "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
@@ -196,7 +206,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        loadPalette();
+        setTheme(palette.light ? R.style.AppTheme_Light : R.style.AppTheme);
         ir = (ConsumerIrManager) getSystemService(Context.CONSUMER_IR_SERVICE);
+        getWindow().setBackgroundDrawable(new ColorDrawable(BG));
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         if (Build.VERSION.SDK_INT >= 30) {
@@ -207,6 +220,7 @@ public class MainActivity extends Activity {
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         }
+        Palette.applyStatusIcons(getWindow(), palette.light);
 
         TextView loading = text("Loading IR database\u2026", 18, MUTED, false);
         loading.setGravity(Gravity.CENTER);
@@ -322,7 +336,7 @@ public class MainActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
-        c.setBackground(Surface.raised(this, 28, CARD, STROKE, 0x18FFFFFF));
+        c.setBackground(Surface.raised(this, 28, CARD, STROKE, palette.gloss(0.09f)));
         Surface.elevate(c, 28, 5);
         return c;
     }
@@ -343,8 +357,8 @@ public class MainActivity extends Activity {
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
         Drawable plate = Surface.raised(this, 20, color,
-                Surface.lighten(STROKE, 0.22f), 0x24FFFFFF);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), plate, null));
+                palette.rim(), palette.gloss(0.14f));
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(RIPPLE), plate, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
         Surface.elevate(b, 20, 2);
         Surface.sinkOnPress(b, 2);
@@ -356,10 +370,11 @@ public class MainActivity extends Activity {
         b.setText(label);
         b.setAllCaps(false);
         b.setTextSize(textSize);
-        b.setTextColor(DARK);
+        b.setTextColor(ON_ACCENT);
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
-        Drawable plate = Surface.raised(this, 22, ACCENT, Surface.darken(ACCENT, 0.42f), 0x3CFFFFFF);
+        Drawable plate = Surface.raised(this, 22, ACCENT,
+                Surface.darken(ACCENT, 0.42f), palette.gloss(0.24f));
         b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33000000), plate, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
         Surface.elevate(b, 22, 5);
@@ -368,12 +383,12 @@ public class MainActivity extends Activity {
     }
 
     private Drawable pill(int fill, int strokeColor) {
-        return Surface.raised(this, 50, fill, strokeColor, 0x1EFFFFFF);
+        return Surface.raised(this, 50, fill, strokeColor, palette.gloss(0.12f));
     }
 
     private GradientDrawable appBackground() {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{BG, 0xFF120E0B});
+                new int[]{BG, palette.bgBottom});
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
     }
@@ -435,11 +450,12 @@ public class MainActivity extends Activity {
         nowRow.addView(nowLabel, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         boolean hasIr = ir != null && ir.hasIrEmitter();
+        int chipTint = hasIr ? ACCENT : RED;
         TextView irChip = text(hasIr ? "IR READY" : "NO IR", 9,
-                hasIr ? 0xFFD6A36A : 0xFFF08A76, true);
+                Surface.blend(chipTint, TEXT, 0.35f), true);
         irChip.setLetterSpacing(0.08f);
-        irChip.setBackground(pill(hasIr ? 0xFF2B1C12 : 0xFF2A1410,
-                hasIr ? 0xFF6A4A2F : 0xFF6B2D22));
+        irChip.setBackground(pill(Surface.blend(CARD, chipTint, 0.18f),
+                Surface.blend(CARD, chipTint, 0.45f)));
         irChip.setPadding(dp(8), dp(3), dp(8), dp(3));
         nowRow.addView(irChip);
         currentCard.addView(nowRow);
@@ -524,7 +540,7 @@ public class MainActivity extends Activity {
         shell.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         View divider = new View(this);
-        divider.setBackgroundColor(0x22E9E0D4);
+        divider.setBackgroundColor(Surface.blend(BG, TEXT, 0.13f));
         shell.addView(divider, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
         TextView footer = text("made by poging kyle", 11, MUTED, false);
@@ -632,12 +648,13 @@ public class MainActivity extends Activity {
             Button b = speedButtons[i];
             if (b == null) continue;
             boolean active = i == index;
-            Drawable plate = Surface.raised(this, 12, active ? ACCENT : Surface.darken(BTN, 0.35f),
+            Drawable plate = Surface.raised(this, 12,
+                    active ? ACCENT : Surface.darken(BTN, palette.light ? 0.12f : 0.35f),
                     active ? Surface.darken(ACCENT, 0.42f) : STROKE,
-                    active ? 0x38FFFFFF : 0x14FFFFFF);
-            b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33E9E0D4), plate, null));
+                    palette.gloss(active ? 0.22f : 0.08f));
+            b.setBackground(new RippleDrawable(ColorStateList.valueOf(RIPPLE), plate, null));
             Surface.elevate(b, 12, active ? 4 : 0);
-            b.setTextColor(active ? DARK : MUTED);
+            b.setTextColor(active ? ON_ACCENT : MUTED);
             b.setTypeface(Typeface.create("sans-serif-medium",
                     active ? Typeface.BOLD : Typeface.NORMAL));
         }
@@ -785,7 +802,7 @@ public class MainActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(18), dp(18), dp(18), dp(18));
-        panel.setBackground(Surface.raised(this, 28, CARD, Surface.lighten(STROKE, 0.2f), 0x1AFFFFFF));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(), palette.gloss(0.10f)));
         Surface.elevate(panel, 28, 12);
 
         panel.addView(text("Find a brand", 22, TEXT, true));
@@ -820,8 +837,8 @@ public class MainActivity extends Activity {
                 boolean active = current != null && b.name.equals(current.brand);
                 TextView row = text(b.name, 15, active ? ACCENT : TEXT, active);
                 row.setPadding(dp(10), dp(13), dp(10), dp(13));
-                row.setBackground(active ? Surface.raised(this, 12, 0xFF211812,
-                        Surface.darken(ACCENT, 0.55f), 0x26FFFFFF) : null);
+                row.setBackground(active ? Surface.raised(this, 12, ACTIVE,
+                        Surface.blend(CARD, ACCENT, 0.5f), palette.gloss(0.16f)) : null);
                 final int index = i;
                 row.setOnClickListener(v -> {
                     brandSpinner.setSelection(index);
@@ -1034,8 +1051,9 @@ public class MainActivity extends Activity {
         progress.setMax(1);
         progress.setProgress(0);
         LayerDrawable bar = new LayerDrawable(new Drawable[]{
-                Surface.recessed(this, 8, 0xFF0C0A09, STROKE),
-                Surface.raised(this, 8, ACCENT, Surface.darken(ACCENT, 0.4f), 0x40FFFFFF)});
+                Surface.recessed(this, 8, Surface.darken(CARD, 0.55f), STROKE),
+                Surface.raised(this, 8, ACCENT, Surface.darken(ACCENT, 0.4f),
+                        palette.gloss(0.25f))});
         bar.setId(0, android.R.id.background);
         bar.setId(1, android.R.id.progress);
         progress.setProgressDrawable(bar);
@@ -1094,7 +1112,7 @@ public class MainActivity extends Activity {
         row.addView(pauseButton, p2);
         row.addView(skip, p3);
         root.addView(row);
-        Button stop = styledButton("Stop", 0xFF26110D, 15);
+        Button stop = styledButton("Stop", Surface.blend(CARD, RED, 0.22f), 15);
         stop.setTextColor(RED);
         stop.setOnClickListener(v -> stopAutoFind("Stopped."));
         LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(
@@ -1674,13 +1692,13 @@ public class MainActivity extends Activity {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 Surface.lift(CARD));
         bg.setCornerRadii(new float[]{dp(28), dp(28), dp(28), dp(28), 0, 0, 0, 0});
-        bg.setStroke(dp(1), Surface.lighten(STROKE, 0.25f));
+        bg.setStroke(dp(1), palette.rim());
         panel.setBackground(bg);
         Surface.elevate(panel, 28, 14);
 
         View handle = new View(this);
         GradientDrawable hb = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xFF8F7F6D, 0xFF4F443A});
+                new int[]{Surface.blend(STROKE, TEXT, 0.55f), Surface.blend(STROKE, BG, 0.3f)});
         hb.setCornerRadius(dp(3));
         handle.setBackground(hb);
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(dp(44), dp(5));
@@ -1751,6 +1769,16 @@ public class MainActivity extends Activity {
             showAbout();
         }));
 
+        TextView themeHeader = text("APPEARANCE", 10, ACCENT, true);
+        themeHeader.setLetterSpacing(0.14f);
+        themeHeader.setPadding(0, dp(10), 0, dp(8));
+        panel.addView(themeHeader);
+        TextView themeNote = text("Ten orange-family themes. Switching one keeps every "
+                + "saved device and setting.", 11, MUTED, false);
+        themeNote.setPadding(0, 0, 0, dp(8));
+        panel.addView(themeNote);
+        panel.addView(themeGrid(dialog));
+
         Button close = styledButton("Close", BTN, 14);
         close.setOnClickListener(v -> dialog.dismiss());
         LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(
@@ -1776,13 +1804,98 @@ public class MainActivity extends Activity {
         }
     }
 
+    private View themeGrid(Dialog host) {
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < Palette.PRESETS.length; i += 2) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams a = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            a.setMargins(0, 0, dp(4), dp(6));
+            row.addView(themeCell(i, host), a);
+            LinearLayout.LayoutParams b = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            b.setMargins(dp(4), 0, 0, dp(6));
+            if (i + 1 < Palette.PRESETS.length) {
+                row.addView(themeCell(i + 1, host), b);
+            } else {
+                row.addView(new Space(this), b);
+            }
+            grid.addView(row);
+        }
+        return grid;
+    }
+
+    private View themeCell(int index, Dialog host) {
+        Palette p = Palette.of(index);
+        boolean active = index == DeviceStore.themeIndex(this);
+        LinearLayout cell = new LinearLayout(this);
+        cell.setOrientation(LinearLayout.HORIZONTAL);
+        cell.setGravity(Gravity.CENTER_VERTICAL);
+        cell.setPadding(dp(9), dp(9), dp(9), dp(9));
+        cell.setBackground(Surface.raised(this, 14, active ? ACTIVE : CARD,
+                active ? p.accent : STROKE, palette.gloss(active ? 0.18f : 0.08f)));
+        Surface.elevate(cell, 14, active ? 4 : 2);
+
+        View swatch = new View(this);
+        swatch.setBackground(miniUI(p));
+        cell.addView(swatch, new LinearLayout.LayoutParams(dp(30), dp(26)));
+
+        TextView name = text(p.name, 12, active ? ACCENT : TEXT, active);
+        name.setSingleLine(true);
+        name.setPadding(dp(9), 0, 0, 0);
+        cell.addView(name, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        cell.setOnClickListener(v -> {
+            if (DeviceStore.themeIndex(this) == index) {
+                host.dismiss();
+                return;
+            }
+            DeviceStore.setThemeIndex(this, index);
+            host.dismiss();
+            recreate();
+        });
+        Surface.sinkOnPress(cell, active ? 4 : 2);
+        return cell;
+    }
+
+    /** A three-line mock of the remote screen wearing the theme it is offering. */
+    private LayerDrawable miniUI(Palette p) {
+        GradientDrawable sheet = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                Surface.lift(p.card));
+        sheet.setCornerRadius(dp(7));
+        sheet.setStroke(Math.max(1, dp(1)), p.stroke);
+
+        GradientDrawable bar = new GradientDrawable();
+        bar.setColor(p.accent);
+        bar.setCornerRadius(dp(2));
+
+        GradientDrawable line = new GradientDrawable();
+        line.setColor(p.muted);
+        line.setCornerRadius(dp(1));
+
+        GradientDrawable dot = new GradientDrawable();
+        dot.setColor(p.text);
+        dot.setCornerRadius(dp(1));
+
+        LayerDrawable mini = new LayerDrawable(
+                new Drawable[]{sheet, bar, line, dot});
+        int g = dp(4);
+        mini.setLayerInset(1, g, dp(15), g, dp(5));
+        mini.setLayerInset(2, g, g, dp(14), dp(17));
+        mini.setLayerInset(3, dp(20), g, g, dp(17));
+        return mini;
+    }
+
     private View categoryChip(Category c, Dialog dialog, int index) {
         LinearLayout chip = new LinearLayout(this);
         chip.setOrientation(LinearLayout.VERTICAL);
         chip.setPadding(dp(12), dp(11), dp(12), dp(11));
         boolean active = c.name.equals(category.name);
-        chip.setBackground(Surface.raised(this, 16, active ? 0xFF211812 : CARD,
-                active ? ACCENT : STROKE, active ? 0x33FFFFFF : 0x16FFFFFF));
+        chip.setBackground(Surface.raised(this, 16, active ? ACTIVE : CARD,
+                active ? ACCENT : STROKE, palette.gloss(active ? 0.20f : 0.09f)));
         Surface.elevate(chip, 16, active ? 5 : 2);
         TextView name = text(c.name, 13, active ? ACCENT : TEXT, true);
         name.setSingleLine(true);
@@ -1803,7 +1916,7 @@ public class MainActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
-        row.setBackground(Surface.raised(this, 16, BTN, STROKE, 0x1CFFFFFF));
+        row.setBackground(Surface.raised(this, 16, BTN, STROKE, palette.gloss(0.11f)));
         Surface.elevate(row, 16, 3);
         Surface.sinkOnPress(row, 3);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
