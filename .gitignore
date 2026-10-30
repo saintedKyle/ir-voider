@@ -19,8 +19,9 @@ Thumbs.db
 *.jks
 *.keystore
 
-# Generated APK in the project root (dist/ release APK is kept)
+# Generated release artifacts (published via GitHub Releases)
 /IRVoider.apk
+/dist/
 
 # Keep the Gradle wrapper jar
 !gradle/wrapper/gradle-wrapper.jar

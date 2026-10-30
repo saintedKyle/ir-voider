@@ -4,58 +4,106 @@
   <img src="docs/images/banner.png" alt="IR Voider — offline IR remote for Android phones" width="100%">
 </p>
 
-A clean, offline IR remote for **Android phones with an IR blaster**. No ads, no
-account, no internet permission — just your phone's IR LED.
+IR Voider turns an **Android phone with a built-in IR blaster** into a clean,
+offline universal remote. No ads, no account, no internet permission — just the
+phone's IR LED.
 
-**Download:** [IRVoider-1.4.apk](dist/IRVoider-1.4.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md) · **Google Play:** [release guide](PLAY_STORE.md) (pending)
+**[Download the latest APK](https://github.com/saintedKyle/ir-voider/releases/latest)** ·
+[Phone compatibility](PHONE_COMPATIBILITY.md) · [Privacy](PRIVACY.md)
 
 ## Install on your phone
 
-1. Download `IRVoider-1.4.apk` to the phone (browser, USB, or cloud drive).
-2. Tap the APK. Android asks to allow installs from this source — allow it.
+1. Download the latest APK from [Releases](https://github.com/saintedKyle/ir-voider/releases/latest).
+2. Open it on the phone. Android asks to allow installs from your browser or file
+   manager — allow it.
 3. Install **IR Voider** and open it.
 
-On MIUI/HyperOS: **Settings → Apps → Special access → Install unknown apps** and
-allow your browser/file manager if the prompt does not appear.
+Requires **Android 6.0+** and a **built-in IR emitter**. It does not work on
+iPhones, iPads, tablets, TVs, PCs, or phones without IR hardware. On MIUI/HyperOS:
+**Settings → Apps → Special access → Install unknown apps**.
 
-The app needs **Android 6.0 or newer** and a built-in IR blaster. It does not work
-on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
-
-> This is a sideload APK signed with a debug key, not a Google Play release.
-> Android may show a warning; choose **Install anyway**.
+The APK is sideloaded, so Android may show a warning. Only install builds from
+this repository's Releases.
 
 ## Use
 
-1. Tap **≡ More** (top-left) and pick a device category: TV, Air Conditioner,
-   Projector, Fan, LED Light, Soundbar, and more.
-2. Pick your brand and model. Press **POWER**.
+1. Tap **≡ More** (top-left) and pick a category: TV, air conditioner, projector,
+   fan, LED light, soundbar, and more.
+2. Pick your brand and model, then press **POWER**.
 3. No reaction? Tap **Find code**. It sends one power code at a time; when the
-   device reacts, tap **It worked**. Missed it? **Previous** replays the last code.
-4. Name and save devices with the **⚙** button (top-right).
+   device reacts, tap **It worked**. **Previous** replays the last code.
+4. Save and name the remote with **⚙** (top-right).
 
 ## What it does
 
-- **39 categories · 1,502 remotes · 17,789 IR codes** from Flipper-IRDB.
-- Dynamic buttons per device with **swipeable pages** (Basics, Navigation, Media,
-  Numbers, Colors, Extras). Power stays pinned above the pages.
-- Expanded keys: digits, color buttons, info/guide, media transport, subtitle,
-  audio, aspect and more.
-- Searchable brand list, Pause/Resume scanning, and a confirmation before an
-  all-brand scan (so you don't hit nearby devices).
-- Auto-find with duplicate removal and "previous code" rewind.
-- Saved devices with custom names and types.
-- IR boost for volume/channel/temperature, plus **Boost all** for every button
-  except POWER.
-- Import raw `.ir` captures as "Learned" remotes.
-- Opt-in **AC power repeat** for air conditioners that ignore a single frame.
-- Scanner **last-5 history** and an advanced **IR override** for phones that report
-  NO IR despite having an emitter.
-- **No internet permission.** Works in airplane mode.
+- **39 categories · 1,502 remotes · 17,789 IR codes** from Flipper-IRDB, bundled offline.
+- TVs, ACs, projectors, fans, LED lights, soundbars, audio receivers, streaming
+  and cable boxes, DVD/Blu-ray players, cameras, air purifiers, and more.
+- Device-specific buttons on swipeable pages: Basics, Navigation, Media, Numbers,
+  Colors and Extras. Power stays pinned above the pages.
+- Searchable brands; scanner with **Last 5** history, Previous/Pause/Stop, and a
+  confirmation before an all-brand scan.
+- Saved devices with custom names, IR boost / **Force mode**, diagnostics.
+- Air-conditioner temperature, mode, fan and swing where the profile supports it.
+- Import raw `.ir` captures as learned remotes.
+- **IR override** for phones that report NO IR despite having an emitter.
+- **No internet permission**; works in airplane mode.
 
-Air conditioners include the buttons captured in the database (power, temp,
-mode, fan, swing, timer where available). Raw AC frames can represent a fixed
-state rather than an incremental step; if your model is missing, its protocol is
-not in the database. A raw `.ir` capture can add your own buttons.
+Air conditioners include the buttons captured in the database. Raw AC frames can
+represent a fixed state rather than an incremental step. If your model is missing,
+its protocol is not in the database; a raw `.ir` capture can add your own buttons.
+
+## How IR works — and the limits
+
+The phone's IR LED blinks invisible light in a precise pattern; a receiver in the
+device reads the pulses. IR is **one-way and line-of-sight**:
+
+- the phone cannot detect, identify, or automatically control nearby devices;
+- IR does not pass through walls;
+- RF and Bluetooth devices are not supported;
+- some air conditioners need the exact model protocol.
+
+Only scan devices you own or have permission to control.
+
+## Phones
+
+See **[PHONE_COMPATIBILITY.md](PHONE_COMPATIBILITY.md)** for confirmed and commonly
+reported IR phones, models that do not work, and a 10-second check. IR blasters
+are not part of Android's requirements, so the same model name can ship with or
+without one. The app checks the hardware and shows **IR READY** or **NO IR**.
+
+## Privacy
+
+No account, analytics, ads, or network access. The only permission is
+`TRANSMIT_IR`. See [PRIVACY.md](PRIVACY.md) or the hosted policy:
+https://saintedkyle.github.io/ir-voider/privacy.html
+
+## Build from source
+
+Requirements: JDK 17+, Android SDK Platform 36, Build-Tools 36.0.0.
+
+```bash
+./gradlew assembleDebug
+```
+
+APK: `app/build/outputs/apk/debug/app-debug.apk`.
+
+The IR database can be regenerated with `python tools/build_db.py` after
+downloading [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) into
+`data/irdb_all/`.
+
+## License, forks and contributions
+
+**License:** [GPL-3.0-or-later](LICENSE). Copyright and credits are in
+[NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+**Forking:** the GPL permits forks, and GitHub does not allow disabling forks on
+a public repository — a public open-source repo is forkable by design. The
+maintainer does not support or endorse modified builds. The **IR Voider** name
+and logo are not licensed for forks or redistributed builds.
+
+**Contributions:** this is a personal project; external contributions and pull
+requests are not accepted.
 
 ## Preview
 
@@ -65,52 +113,15 @@ not in the database. A raw `.ir` capture can add your own buttons.
 
 <p align="center"><em>Illustrative UI preview. The current build groups buttons into swipeable pages (Basics, Navigation, Media, Numbers, Colors, Extras).</em></p>
 
-<details>
-<summary>Individual screens</summary>
-<p align="center">
-  <img src="docs/images/home.png" alt="Remote screen" width="31%">
-  <img src="docs/images/more.png" alt="More menu" width="31%">
-  <img src="docs/images/devices.png" alt="Devices screen" width="31%">
-</p>
-</details>
-
-## Phones
-
-See **[PHONE_COMPATIBILITY.md](PHONE_COMPATIBILITY.md)** for confirmed and
-commonly reported IR phones, models that do **not** work, and how to check your
-phone in 10 seconds. A complete model list is impossible; the app checks the IR
-hardware at runtime and shows **IR READY** or **NO IR**.
-
-## Privacy
-
-No account, no analytics, no ads, no network access. The only permission is
-`TRANSMIT_IR`. See [PRIVACY.md](PRIVACY.md) or the hosted policy:
-https://saintedkyle.github.io/ir-voider/privacy.html
-
-## License, forks and contributions
-
-**License:** [GPL-3.0-or-later](LICENSE). The app is free and open source.
-
-**Forking:** the GPL permits forks, and GitHub does not allow disabling forks on
-a public repository — a public open-source repo is forkable by design. The
-maintainer does not support or endorse modified builds. The **IR Voider** name
-and logo are not licensed for forks or redistributed builds.
-
-**Contributions:** this is a personal project and external contributions are not
-accepted. Please do not open pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md).
-
 ## Docs
 
 - [PHONE_COMPATIBILITY.md](PHONE_COMPATIBILITY.md) — which phones work
-- [HOW_IT_WORKS.md](HOW_IT_WORKS.md) — IR, scanning, limits
 - [PRIVACY.md](PRIVACY.md) — no data collection
 - [TERMS.md](TERMS.md) — terms of use
 - [SECURITY.md](SECURITY.md) — reporting a vulnerability
-- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — code/data credits
-- [BUILDING.md](BUILDING.md) — build from source
-- [CHANGELOG.md](CHANGELOG.md)
-- [PLAY_STORE.md](PLAY_STORE.md) — Google Play release guide
-- [PHONE_ONLY.md](PHONE_ONLY.md) — build and publish an APK from your phone
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — code and data credits
+
+See [Releases](https://github.com/saintedKyle/ir-voider/releases) for version history.
 
 ---
 
