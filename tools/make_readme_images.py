@@ -76,10 +76,45 @@ def paste_gradient(base, box, colors, radius, outline=None, width=2):
         ImageDraw.Draw(base).rounded_rectangle(box, radius=radius, outline=outline, width=width)
 
 
+def _mix(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def _lift(base):
+    lum = (0.2126 * base[0] + 0.7152 * base[1] + 0.0722 * base[2]) / 255
+    return (_mix(base, (255, 255, 255), 0.06 + 0.16 * lum), base, _mix(base, (0, 0, 0), 0.34))
+
+
+def raised(draw, box, base, radius, outline=None, gloss=0.10, width=2, sink=False):
+    """Light-from-above fill used by app/src/main/java/com/kylem/remote/Surface.java.
+
+    sink=True flips the lighting so the plate reads as a groove instead of a raised pad.
+    """
+    x0, y0, x1, y1 = [int(v) for v in box]
+    stops = _lift(base)
+    if sink:
+        stops = (_mix(base, (0, 0, 0), 0.35), base, _mix(base, (255, 255, 255), 0.09))
+    r = max(1, min(int(radius), (y1 - y0) // 2, (x1 - x0) // 2))
+    for y in range(y0, y1):
+        t = (y - y0) / max(1, y1 - y0 - 1)
+        c = _mix(stops[0], stops[1], t * 2) if t < 0.5 else _mix(stops[1], stops[2], (t - 0.5) * 2)
+        if sink:
+            c = _mix(c, (0, 0, 0), gloss * max(0.0, 1 - 2 * t))
+            c = _mix(c, (255, 255, 255), 0.10 * max(0.0, 2 * t - 1))
+        else:
+            c = _mix(c, (255, 255, 255), gloss * max(0.0, 1 - 2 * t))
+            c = _mix(c, (0, 0, 0), 0.18 * max(0.0, 2 * t - 1))
+        dy = max(0, y0 + r - 1 - y, y - (y1 - r))
+        inset = int(r - (r * r - dy * dy) ** 0.5) if dy else 0
+        draw.line([(x0 + inset, y), (x1 - inset - 1, y)], fill=c)
+    if outline:
+        draw.rounded_rectangle(box, radius=int(radius), outline=outline, width=width)
+
+
 def card(draw, box, radius=28, fill=CARD, outline=STROKE):
     draw.rounded_rectangle([box[0] + 4, box[1] + 6, box[2] + 4, box[3] + 6],
                            radius=radius, fill=(4, 4, 4))
-    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2)
+    raised(draw, box, fill, radius, outline, gloss=0.06)
 
 
 def text(draw, xy, value, f, fill=TEXT, anchor="la"):
@@ -95,7 +130,7 @@ def tracked(draw, xy, value, f, fill, spacing=6):
 
 
 def button(draw, box, label, fill=BTN, color=TEXT, radius=20, f=None, outline=STROKE):
-    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2)
+    raised(draw, box, fill, radius, outline, gloss=0.10)
     f = f or font(F_REG, 30)
     cx = (box[0] + box[2]) / 2
     cy = (box[1] + box[3]) / 2
@@ -103,7 +138,7 @@ def button(draw, box, label, fill=BTN, color=TEXT, radius=20, f=None, outline=ST
 
 
 def highlight_button(draw, box, label, size=40, radius=22):
-    draw.rounded_rectangle(box, radius=radius, fill=ACCENT)
+    raised(draw, box, ACCENT, radius, _mix(ACCENT, (0, 0, 0), 0.42), gloss=0.16)
     draw.text(((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), label,
               font=font(F_SEMI, size), fill=DARK, anchor="mm")
 
@@ -111,8 +146,7 @@ def highlight_button(draw, box, label, size=40, radius=22):
 def pill(draw, x, y, label, f, color=CYAN, fill=CARD, outline=STROKE, pad_x=14, pad_y=5):
     w = draw.textlength(label, font=f) + pad_x * 2
     h = f.size + pad_y * 2 + 3
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=h / 2, fill=fill,
-                           outline=outline, width=1)
+    raised(draw, [x, y, x + w, y + h], fill, h / 2, outline, gloss=0.07, width=1)
     draw.text((x + pad_x, y + pad_y), label, font=f, fill=color, anchor="la")
     return w
 
@@ -148,16 +182,14 @@ def logo(size, radius):
 
 
 def top_bar(img, d, category):
-    d.rounded_rectangle([40, 96, 148, 204], radius=28, fill=BTN,
-                        outline=STROKE, width=2)
+    raised(d, [40, 96, 148, 204], BTN, 28, STROKE)
     for i in range(3):
         d.rounded_rectangle([66, 126 + i * 20, 122, 132 + i * 20], radius=3, fill=TEXT)
     icon = logo(84, 24)
     img.paste(icon, (170, 108), icon)
     text(d, (278, 92), "IR Voider", font(F_BLACK, 54), TEXT)
     pill(d, 280, 160, category, font(F_SEMI, 22), TEXT)
-    d.rounded_rectangle([940, 96, 1040, 196], radius=28, fill=BTN,
-                        outline=STROKE, width=2)
+    raised(d, [940, 96, 1040, 196], BTN, 28, STROKE)
     d.text((990, 146), "\u2699", font=font(F_SYM, 40), fill=TEXT, anchor="mm")
 
 
@@ -191,8 +223,7 @@ def page_row(d, y, label, x=76, w=928):
 
 
 def field(d, y, label, value, x=76, w=928, search=False):
-    d.rounded_rectangle([x, y, x + w, y + 80], radius=22, fill=CARD2,
-                        outline=STROKE, width=2)
+    raised(d, [x, y, x + w, y + 80], CARD2, 22, STROKE, gloss=0.12, width=2, sink=True)
     d.text((x + 28, y + 26), label, font=font(F_SEMI, 24), fill=MUTED, anchor="la")
     d.text((x + 162, y + 24), value, font=font(F_SEMI, 27), fill=TEXT, anchor="la")
     if search:
@@ -274,8 +305,8 @@ def scanner_screen():
     text(d, (44, 148), "Point at the device", font(F_BLACK, 76), TEXT)
     text(d, (44, 232), "Air Conditioner  \u00B7  92 codes", font(F_REG, 30), MUTED)
 
-    d.rounded_rectangle([44, 302, 1036, 314], radius=7, fill=(24, 24, 24))
-    d.rounded_rectangle([44, 302, 44 + int(992 * 0.13), 314], radius=7, fill=ACCENT)
+    raised(d, [44, 302, 1036, 314], (12, 10, 9), 7, STROKE, gloss=0.14, width=1, sink=True)
+    raised(d, [44, 302, 44 + int(992 * 0.13), 314], ACCENT, 7, None, gloss=0.16)
     text(d, (44, 334), "12 / 92", font(F_REG, 26), MUTED)
     text(d, (44, 382), "Haier \u2014 HPD10XCM-LW", font(F_BLACK, 62), TEXT)
     text(d, (44, 454), "Watch the device. When it reacts, tap It worked.",

@@ -89,11 +89,8 @@ public class ConfigsActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(28));
-        bg.setStroke(dp(1), STROKE);
-        c.setBackground(bg);
+        c.setBackground(Surface.raised(this, 28, CARD, STROKE, 0x18FFFFFF));
+        Surface.elevate(c, 28, 5);
         return c;
     }
 
@@ -112,11 +109,13 @@ public class ConfigsActivity extends Activity {
         b.setTextColor(textColor);
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(color);
-        bg.setCornerRadius(dp(20));
-        bg.setStroke(dp(1), STROKE);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), bg, null));
+        boolean hot = color == ACCENT;
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4),
+                Surface.raised(this, 20, color,
+                        hot ? Surface.darken(ACCENT, 0.42f) : Surface.lighten(STROKE, 0.22f),
+                        hot ? 0x3CFFFFFF : 0x24FFFFFF), null));
+        Surface.elevate(b, 20, hot ? 5 : 2);
+        Surface.sinkOnPress(b, hot ? 5 : 2);
         return b;
     }
 

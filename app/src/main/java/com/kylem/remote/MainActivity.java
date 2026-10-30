@@ -17,7 +17,9 @@ import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.hardware.ConsumerIrManager;
 import android.os.Build;
@@ -320,11 +322,8 @@ public class MainActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setPadding(dp(16), dp(16), dp(16), dp(16));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(28));
-        bg.setStroke(dp(1), STROKE);
-        c.setBackground(bg);
+        c.setBackground(Surface.raised(this, 28, CARD, STROKE, 0x18FFFFFF));
+        Surface.elevate(c, 28, 5);
         return c;
     }
 
@@ -343,12 +342,12 @@ public class MainActivity extends Activity {
         b.setTextColor(TEXT);
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(color);
-        bg.setCornerRadius(dp(20));
-        bg.setStroke(dp(1), STROKE);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), bg, null));
+        Drawable plate = Surface.raised(this, 20, color,
+                Surface.lighten(STROKE, 0.22f), 0x24FFFFFF);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22E9E0D4), plate, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
+        Surface.elevate(b, 20, 2);
+        Surface.sinkOnPress(b, 2);
         return b;
     }
 
@@ -360,36 +359,16 @@ public class MainActivity extends Activity {
         b.setTextColor(DARK);
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(ACCENT);
-        bg.setCornerRadius(dp(22));
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x22000000), bg, null));
+        Drawable plate = Surface.raised(this, 22, ACCENT, Surface.darken(ACCENT, 0.42f), 0x3CFFFFFF);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33000000), plate, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
+        Surface.elevate(b, 22, 5);
+        Surface.sinkOnPress(b, 5);
         return b;
     }
 
-    private Button gradientButton(String label, int c1, int c2, int textColor, float textSize) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setAllCaps(false);
-        b.setTextSize(textSize);
-        b.setTextColor(textColor);
-        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        b.setStateListAnimator(null);
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{c1, c2});
-        bg.setCornerRadius(dp(18));
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), bg, null));
-        b.setPadding(dp(8), dp(8), dp(8), dp(8));
-        return b;
-    }
-
-    private GradientDrawable pill(int fill, int strokeColor) {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(fill);
-        bg.setCornerRadius(dp(50));
-        bg.setStroke(dp(1), strokeColor);
-        return bg;
+    private Drawable pill(int fill, int strokeColor) {
+        return Surface.raised(this, 50, fill, strokeColor, 0x1EFFFFFF);
     }
 
     private GradientDrawable appBackground() {
@@ -618,12 +597,14 @@ public class MainActivity extends Activity {
                     send(key);
                     handler.postDelayed(repeatRunnable, 450);
                     v.setPressed(true);
+                    Surface.sink(v, true, 2);
                     return true;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
                     repeatKey = null;
                     handler.removeCallbacks(repeatRunnable);
                     v.setPressed(false);
+                    Surface.sink(v, false, 2);
                     return true;
                 default:
                     return false;
@@ -651,10 +632,11 @@ public class MainActivity extends Activity {
             Button b = speedButtons[i];
             if (b == null) continue;
             boolean active = i == index;
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(active ? ACCENT : BTN);
-            bg.setCornerRadius(dp(12));
-            b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33E9E0D4), bg, null));
+            Drawable plate = Surface.raised(this, 12, active ? ACCENT : Surface.darken(BTN, 0.35f),
+                    active ? Surface.darken(ACCENT, 0.42f) : STROKE,
+                    active ? 0x38FFFFFF : 0x14FFFFFF);
+            b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33E9E0D4), plate, null));
+            Surface.elevate(b, 12, active ? 4 : 0);
             b.setTextColor(active ? DARK : MUTED);
             b.setTypeface(Typeface.create("sans-serif-medium",
                     active ? Typeface.BOLD : Typeface.NORMAL));
@@ -803,11 +785,8 @@ public class MainActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(18), dp(18), dp(18), dp(18));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(28));
-        bg.setStroke(dp(1), STROKE);
-        panel.setBackground(bg);
+        panel.setBackground(Surface.raised(this, 28, CARD, Surface.lighten(STROKE, 0.2f), 0x1AFFFFFF));
+        Surface.elevate(panel, 28, 12);
 
         panel.addView(text("Find a brand", 22, TEXT, true));
         EditText input = new EditText(this);
@@ -841,10 +820,8 @@ public class MainActivity extends Activity {
                 boolean active = current != null && b.name.equals(current.brand);
                 TextView row = text(b.name, 15, active ? ACCENT : TEXT, active);
                 row.setPadding(dp(10), dp(13), dp(10), dp(13));
-                GradientDrawable rowBg = new GradientDrawable();
-                rowBg.setColor(active ? 0xFF211812 : 0x00000000);
-                rowBg.setCornerRadius(dp(12));
-                row.setBackground(rowBg);
+                row.setBackground(active ? Surface.raised(this, 12, 0xFF211812,
+                        Surface.darken(ACCENT, 0.55f), 0x26FFFFFF) : null);
                 final int index = i;
                 row.setOnClickListener(v -> {
                     brandSpinner.setSelection(index);
@@ -1056,8 +1033,12 @@ public class MainActivity extends Activity {
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(1);
         progress.setProgress(0);
-        progress.setProgressTintList(ColorStateList.valueOf(ACCENT));
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(STROKE));
+        LayerDrawable bar = new LayerDrawable(new Drawable[]{
+                Surface.recessed(this, 8, 0xFF0C0A09, STROKE),
+                Surface.raised(this, 8, ACCENT, Surface.darken(ACCENT, 0.4f), 0x40FFFFFF)});
+        bar.setId(0, android.R.id.background);
+        bar.setId(1, android.R.id.progress);
+        progress.setProgressDrawable(bar);
         LinearLayout.LayoutParams progressLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(8));
         progressLp.topMargin = dp(28);
@@ -1075,11 +1056,7 @@ public class MainActivity extends Activity {
         LinearLayout historyBox = new LinearLayout(this);
         historyBox.setOrientation(LinearLayout.VERTICAL);
         historyBox.setPadding(dp(14), dp(10), dp(14), dp(10));
-        GradientDrawable hbg = new GradientDrawable();
-        hbg.setColor(CARD);
-        hbg.setCornerRadius(dp(16));
-        hbg.setStroke(dp(1), STROKE);
-        historyBox.setBackground(hbg);
+        historyBox.setBackground(Surface.recessed(this, 16, Surface.darken(CARD, 0.55f), STROKE));
         TextView historyLabel = text("LAST 5 SCANNED", 9, MUTED, true);
         historyLabel.setLetterSpacing(0.12f);
         historyBox.addView(historyLabel);
@@ -1694,15 +1671,16 @@ public class MainActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(18), dp(12), dp(18), dp(24));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                Surface.lift(CARD));
         bg.setCornerRadii(new float[]{dp(28), dp(28), dp(28), dp(28), 0, 0, 0, 0});
-        bg.setStroke(dp(1), STROKE);
+        bg.setStroke(dp(1), Surface.lighten(STROKE, 0.25f));
         panel.setBackground(bg);
+        Surface.elevate(panel, 28, 14);
 
         View handle = new View(this);
-        GradientDrawable hb = new GradientDrawable();
-        hb.setColor(0xFF6A5A4B);
+        GradientDrawable hb = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xFF8F7F6D, 0xFF4F443A});
         hb.setCornerRadius(dp(3));
         handle.setBackground(hb);
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(dp(44), dp(5));
@@ -1803,11 +1781,9 @@ public class MainActivity extends Activity {
         chip.setOrientation(LinearLayout.VERTICAL);
         chip.setPadding(dp(12), dp(11), dp(12), dp(11));
         boolean active = c.name.equals(category.name);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(active ? 0xFF211812 : CARD);
-        bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), active ? ACCENT : STROKE);
-        chip.setBackground(bg);
+        chip.setBackground(Surface.raised(this, 16, active ? 0xFF211812 : CARD,
+                active ? ACCENT : STROKE, active ? 0x33FFFFFF : 0x16FFFFFF));
+        Surface.elevate(chip, 16, active ? 5 : 2);
         TextView name = text(c.name, 13, active ? ACCENT : TEXT, true);
         name.setSingleLine(true);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -1827,11 +1803,9 @@ public class MainActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), STROKE);
-        row.setBackground(bg);
+        row.setBackground(Surface.raised(this, 16, BTN, STROKE, 0x1CFFFFFF));
+        Surface.elevate(row, 16, 3);
+        Surface.sinkOnPress(row, 3);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = dp(8);
