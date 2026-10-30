@@ -48,7 +48,8 @@ this repository's Releases.
 - Searchable brands; scanner with **Last 5** history, Previous/Pause/Stop, and a
   confirmation before an all-brand scan.
 - Saved devices with custom names, IR boost / **Force mode**, diagnostics.
-- **Ten orange-family themes** — pick one under **≡ More → Appearance**.
+- **Ten themes** (orange, gold, green, teal, blue, violet, rose, silver, black, light)
+  — pick one under **≡ More → Appearance**.
 - Air-conditioner temperature, mode, fan and swing where the profile supports it.
 - Import raw `.ir` captures as learned remotes.
 - **IR override** for phones that report NO IR despite having an emitter.
@@ -62,18 +63,21 @@ its protocol is not in the database; a raw `.ir` capture can add your own button
 
 Nothing in the app is a flat fill. Buttons, cards, chips, the scanner track and
 the bottom sheet are shaded plates — lit top rim, body gradient, contact shadow —
-drawn in code, and they sink under a press. Ten presets move the accent along the
-ember-to-bronze arc; layout, type and warm neutrals never change.
+drawn in code, and they sink under a press.
+
+Ten themes re-colour all of it, and each brings its own neutrals, so a blue accent
+sits on blue-black surfaces instead of a warm card with a cold button: **Ember
+Signal** (orange), **Void Amber** (gold), **Terrace Green**, **Teal Current**,
+**Cobalt Pulse**, **Ultraviolet**, **Rose Signal**, **Smoke Signal** (silver),
+**OLED Void** (true black for AMOLED) and **Bone Frost** — the light one, for
+daylight. The layout, type and control positions never change.
 
 **≡ More → Appearance** switches themes instantly. Saved devices, IR settings and
 scanner history are untouched, and the choice is remembered on the phone.
 
 <p align="center">
-  <img src="docs/images/themes.png" alt="The ten orange-family themes: Ember Signal, Void Amber, Rust Signal, Copper Plate, Solar Flare, Ashen Coal, Hearth Glow, Bronze Dusk, OLED Void and Bone Ember" width="100%">
+  <img src="docs/images/themes.png" alt="The ten themes: Ember Signal, Void Amber, Terrace Green, Teal Current, Cobalt Pulse, Ultraviolet, Rose Signal, Smoke Signal, OLED Void and Bone Frost" width="100%">
 </p>
-
-Nine run dark; **Bone Ember** inverts to a warm light surface for daylight, and
-**OLED Void** drops the background to true black.
 
 ## How IR works — and the limits
 

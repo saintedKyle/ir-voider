@@ -13,8 +13,8 @@ import android.view.Window;
 import android.view.WindowInsetsController;
 
 /**
- * The ten orange-family themes. Every preset keeps its neutrals warm and its accent somewhere on
- * the ember-to-bronze arc, so switching themes never leaves the app's identity.
+ * The ten themes. Each one carries its own neutrals, so a blue accent sits on blue-black
+ * surfaces rather than on a warm card with a cold button. Ember Signal stays the default.
  */
 public final class Palette {
 
@@ -29,38 +29,38 @@ public final class Palette {
                     0xFF090807, 0xFF120F0A, 0xFF14120E, 0xFF1B1813, 0xFF2E2A21,
                     0xFFE8A33D, 0xFFB58443, 0xFFE9E2D0, 0xFF8B8370,
                     0xFFE08A55, 0xFFAEC48A, 0xFF0A0908),
-            new Palette("Rust Signal",
-                    0xFF0B0706, 0xFF150D0A, 0xFF17100E, 0xFF1D1412, 0xFF33231E,
-                    0xFFC4562B, 0xFF8E4526, 0xFFEBD9CE, 0xFF8A7166,
-                    0xFFE06B55, 0xFFB7C48A, 0xFF0B0706),
-            new Palette("Copper Plate",
-                    0xFF0A0807, 0xFF141009, 0xFF16110D, 0xFF1C1611, 0xFF32261C,
-                    0xFFB07D52, 0xFFD9A268, 0xFFE9DECF, 0xFF8B7B67,
-                    0xFFD96B4B, 0xFFB7BE8A, 0xFF0A0807),
-            new Palette("Solar Flare",
-                    0xFF060505, 0xFF100D0B, 0xFF121010, 0xFF191616, 0xFF2E2A28,
-                    0xFFFF8A3D, 0xFFFFB067, 0xFFF2E9DE, 0xFF8E8478,
-                    0xFFF06B4A, 0xFFB7C48A, 0xFF060505),
-            new Palette("Ashen Coal",
-                    0xFF0C0B0A, 0xFF141312, 0xFF161514, 0xFF1D1B1A, 0xFF302D2A,
-                    0xFFC97A4B, 0xFF9A6A45, 0xFFD9D3CA, 0xFF857F77,
-                    0xFFD4694F, 0xFFA9B582, 0xFF0C0B0A),
-            new Palette("Hearth Glow",
-                    0xFF0D0805, 0xFF1A1109, 0xFF191109, 0xFF211710, 0xFF3A2A1C,
-                    0xFFF08C3A, 0xFFC9702E, 0xFFF0E2CE, 0xFF9A8368,
-                    0xFFE07055, 0xFFBCC48A, 0xFF0D0805),
-            new Palette("Bronze Dusk",
-                    0xFF0A0A08, 0xFF131210, 0xFF15140F, 0xFF1C1B15, 0xFF302E22,
-                    0xFFC89A54, 0xFFE0B472, 0xFFE7E2D0, 0xFF8C8776,
-                    0xFFD97052, 0xFFB2C086, 0xFF0A0A08),
+            new Palette("Terrace Green",
+                    0xFF070B08, 0xFF0C130E, 0xFF0E1510, 0xFF141D17, 0xFF243528,
+                    0xFF5FC97A, 0xFF3E9E62, 0xFFDCE9DC, 0xFF75897A,
+                    0xFFE0705A, 0xFF9BD48F, 0xFF07130B),
+            new Palette("Teal Current",
+                    0xFF060B0C, 0xFF0A1214, 0xFF0D1518, 0xFF131E22, 0xFF21363B,
+                    0xFF31C7B8, 0xFF2A9E97, 0xFFD8E9E8, 0xFF70898C,
+                    0xFFE0705A, 0xFF8FD4A0, 0xFF04100F),
+            new Palette("Cobalt Pulse",
+                    0xFF070911, 0xFF0B1020, 0xFF0E1322, 0xFF141B2E, 0xFF24304F,
+                    0xFF4C8DF6, 0xFF7FA8E8, 0xFFDDE4F5, 0xFF7783A0,
+                    0xFFE06B6B, 0xFF8FD48F, 0xFF060A14),
+            new Palette("Ultraviolet",
+                    0xFF0A0713, 0xFF110C1F, 0xFF140F24, 0xFF1B1530, 0xFF2E2450,
+                    0xFFA47CF5, 0xFF7E5BD0, 0xFFE6DFF7, 0xFF857CA0,
+                    0xFFE06B8F, 0xFF9BD48F, 0xFF0B0716),
+            new Palette("Rose Signal",
+                    0xFF0E070B, 0xFF170B12, 0xFF1A0E15, 0xFF23131C, 0xFF3B2030,
+                    0xFFF2649B, 0xFFC25A86, 0xFFEDDCE3, 0xFF9A7A87,
+                    0xFFE0605A, 0xFF9BD48F, 0xFF140409),
+            new Palette("Smoke Signal",
+                    0xFF0A0A0B, 0xFF121214, 0xFF151517, 0xFF1C1C1F, 0xFF2F2F34,
+                    0xFFC3C9D2, 0xFF8C93A0, 0xFFE7E8EA, 0xFF84868C,
+                    0xFFE06B55, 0xFF9BD48F, 0xFF0A0A0B),
             new Palette("OLED Void",
                     0xFF000000, 0xFF0A0705, 0xFF0E0C0A, 0xFF151210, 0xFF262220,
                     0xFFE8753D, 0xFFB07D52, 0xFFE9E0D4, 0xFF7E766D,
                     0xFFE06B55, 0xFFB7C48A, 0xFF000000),
-            new Palette("Bone Ember",
-                    0xFFE9E0D4, 0xFFDCD0BE, 0xFFF2EBE0, 0xFFE4DACB, 0xFFC9BCA8,
-                    0xFFD4562A, 0xFFA9682F, 0xFF1A1715, 0xFF6A625A,
-                    0xFFB23A22, 0xFF5F7A3A, 0xFFF5EFE6),
+            new Palette("Bone Frost",
+                    0xFFE7EBF2, 0xFFD8DEE9, 0xFFF1F4F9, 0xFFDFE5EF, 0xFFC0C8D6,
+                    0xFF2F6FD0, 0xFF5D8BD8, 0xFF141821, 0xFF5E6674,
+                    0xFFC23A2E, 0xFF3F7A3A, 0xFFF4F7FC),
     };
 
     public final String name;

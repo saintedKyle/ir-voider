@@ -13,15 +13,15 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
-    <!-- Used by the light orange themes so stock widgets (spinners, dialogs) stay readable. -->
+    <!-- Used by the light theme so stock widgets (spinners, dialogs) stay readable. -->
     <style name="AppTheme.Light" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/warm_bone</item>
-        <item name="android:colorAccent">@color/warm_ember</item>
-        <item name="android:colorPrimary">@color/warm_ember</item>
-        <item name="android:colorPrimaryDark">@color/warm_bone</item>
-        <item name="android:colorControlActivated">@color/warm_ember</item>
-        <item name="android:colorControlHighlight">#33D4562A</item>
-        <item name="android:colorControlNormal">#C9BCA8</item>
+        <item name="android:windowBackground">@color/frost_bone</item>
+        <item name="android:colorAccent">@color/frost_blue</item>
+        <item name="android:colorPrimary">@color/frost_blue</item>
+        <item name="android:colorPrimaryDark">@color/frost_bone</item>
+        <item name="android:colorControlActivated">@color/frost_blue</item>
+        <item name="android:colorControlHighlight">#332F6FD0</item>
+        <item name="android:colorControlNormal">#C0C8D6</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>

@@ -7,5 +7,7 @@
     <color name="warm_bone">#E9E0D4</color>
     <color name="warm_ember">#E8753D</color>
     <color name="warm_copper">#B07D52</color>
+    <color name="frost_bone">#E7EBF2</color>
+    <color name="frost_blue">#2F6FD0</color>
     <color name="ic_launcher_background">#12100E</color>
 </resources>
