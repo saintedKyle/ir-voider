@@ -1290,6 +1290,7 @@ public class MainActivity extends Activity {
         progress.setProgress(nextCandidate);
         scanCount.setText("Scanning " + nextCandidate + " / " + candidates.size());
         scanName.setText(c.remote.brand + " \u2014 " + pretty(c.remote.name));
+        recordScanHistory(c);
         handler.postDelayed(this::tickAutoFind, scanDelayMs);
     }
 
