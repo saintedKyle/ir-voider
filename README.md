@@ -5,8 +5,8 @@
 </p>
 
 IR Voider turns an **Android phone with a built-in IR blaster** into a clean,
-offline universal remote. No ads, no account, no internet permission — just the
-phone's IR LED.
+offline universal remote. No ads, no account, no tracking — just the phone's
+IR LED.
 
 **[Download the latest APK](https://github.com/saintedKyle/ir-voider/releases/latest)** ·
 [Phone compatibility](PHONE_COMPATIBILITY.md) · [Privacy](PRIVACY.md)
@@ -53,7 +53,11 @@ this repository's Releases.
 - Air-conditioner temperature, mode, fan and swing where the profile supports it.
 - Import raw `.ir` captures as learned remotes.
 - **IR override** for phones that report NO IR despite having an emitter.
-- **No internet permission**; works in airplane mode.
+- **Scan clock** — elapsed time and an estimate of what is left, paused correctly
+  when you pause, with the screen held awake for the whole run.
+- **Optional update check** — the only network code in the app. It asks GitHub for
+  the newest release once per app open and is one tap away in **≡ More → Updates**.
+  Everything else, including every remote and scan, works in airplane mode.
 
 Air conditioners include the buttons captured in the database. Raw AC frames can
 represent a fixed state rather than an incremental step. If your model is missing,

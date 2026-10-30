@@ -33,3 +33,9 @@ __pycache__/
 # Play upload key (never commit)
 keystore.properties
 keys/
+
+# Release artifacts upload to GitHub Releases, not into the repo
+/release-*/
+/IRVoider-*.apk
+/IRVoider-*.aab
+/IRVoider-*.sha256

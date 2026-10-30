@@ -22,10 +22,12 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.hardware.ConsumerIrManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.GestureDetector;
@@ -48,6 +50,7 @@ import android.widget.ScrollView;
 import android.widget.Space;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.ViewFlipper;
@@ -193,6 +196,19 @@ public class MainActivity extends Activity {
     private int nextCandidate;
     private int scanDelayMs = 2000;
     private String repeatKey;
+    private TextView scanTimer;
+    private long scanStartedAt;
+    private long pausedTotal;
+    private long pauseStartedAt;
+    private boolean updateChecked;
+    private final Handler timerHandler = new Handler(Looper.getMainLooper());
+    private final Runnable timerTick = new Runnable() {
+        @Override
+        public void run() {
+            showScanElapsed();
+            timerHandler.postDelayed(this, 500);
+        }
+    };
 
     private final Runnable repeatRunnable = new Runnable() {
         @Override
@@ -241,6 +257,7 @@ public class MainActivity extends Activity {
                     loading.setText("Could not load remote database:\n" + err);
                 } else {
                     buildUi();
+                    maybeCheckForUpdate();
                 }
             });
         }).start();
@@ -529,7 +546,8 @@ public class MainActivity extends Activity {
         addCard(root, scanCard);
 
         TextView credit = text(
-                "Codes: Flipper-IRDB (CC0). IR only \u2014 no network permission.",
+                "Codes: Flipper-IRDB (CC0). IR only \u2014 no network calls unless "
+                        + "you turn on update checks.",
                 11, MUTED, false);
         credit.setPadding(dp(4), dp(4), 0, 0);
         root.addView(credit);
@@ -1068,6 +1086,9 @@ public class MainActivity extends Activity {
         scanName = text("", 26, TEXT, true);
         scanName.setPadding(0, dp(4), 0, dp(10));
         root.addView(scanName);
+        scanTimer = text("", 13, ACCENT, true);
+        scanTimer.setPadding(0, 0, 0, dp(8));
+        root.addView(scanTimer);
         root.addView(text("Watch the device. When it reacts, tap It worked.",
                 12, MUTED, false));
 
@@ -1137,10 +1158,31 @@ public class MainActivity extends Activity {
     }
 
     private void dismissScanner() {
+        timerHandler.removeCallbacks(timerTick);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        scanTimer = null;
         if (scannerDialog != null) {
             scannerDialog.dismiss();
             scannerDialog = null;
         }
+    }
+
+    private void showScanElapsed() {
+        if (scanTimer == null) return;
+        long now = SystemClock.elapsedRealtime();
+        long active = now - scanStartedAt - pausedTotal;
+        if (scanPaused && pauseStartedAt > 0) active -= now - pauseStartedAt;
+        int left = Math.max(0, candidates.size() - nextCandidate);
+        String tail = scanPaused ? "paused"
+                : "\u2248 " + clock((long) left * scanDelayMs / 1000L) + " left";
+        scanTimer.setText(clock(active / 1000L) + " elapsed  \u00b7  " + tail);
+    }
+
+    private static String clock(long seconds) {
+        long s = Math.max(0, seconds);
+        if (s < 3600) return String.format(java.util.Locale.US, "%d:%02d", s / 60, s % 60);
+        return String.format(java.util.Locale.US, "%d:%02d:%02d",
+                s / 3600, (s / 60) % 60, s % 60);
     }
 
     private void recordScanHistory(Candidate c) {
@@ -1160,14 +1202,26 @@ public class MainActivity extends Activity {
     private void pauseScan() {
         if (!running) return;
         scanPaused = !scanPaused;
+        if (scanPaused) {
+            pauseStartedAt = SystemClock.elapsedRealtime();
+        } else {
+            resumeClock();
+        }
         handler.removeCallbacksAndMessages(null);
         if (pauseButton != null) pauseButton.setText(scanPaused ? "Resume" : "Pause");
         if (!scanPaused) handler.postDelayed(this::tickAutoFind, 250);
     }
 
+    private void resumeClock() {
+        if (pauseStartedAt == 0) return;
+        pausedTotal += SystemClock.elapsedRealtime() - pauseStartedAt;
+        pauseStartedAt = 0;
+    }
+
     private void skipFive() {
         if (!running) return;
         scanPaused = false;
+        resumeClock();
         if (pauseButton != null) pauseButton.setText("Pause");
         handler.removeCallbacksAndMessages(null);
         nextCandidate = Math.min(candidates.size(), nextCandidate + 5);
@@ -1222,6 +1276,9 @@ public class MainActivity extends Activity {
         if (running) return;
         running = true;
         scanPaused = false;
+        scanStartedAt = SystemClock.elapsedRealtime();
+        pausedTotal = 0;
+        pauseStartedAt = 0;
         nextCandidate = 0;
         findButton.setEnabled(false);
         allBrands.setEnabled(false);
@@ -1233,6 +1290,8 @@ public class MainActivity extends Activity {
             b.setAlpha(0.3f);
         }
         showScannerDialog();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        timerHandler.post(timerTick);
         progress.setMax(candidates.size());
         progress.setProgress(0);
         scanCount.setText("Scanning 0 / " + candidates.size());
@@ -1769,6 +1828,25 @@ public class MainActivity extends Activity {
             showAbout();
         }));
 
+        TextView updateHeader = text("UPDATES", 10, ACCENT, true);
+        updateHeader.setLetterSpacing(0.14f);
+        updateHeader.setPadding(0, dp(10), 0, dp(8));
+        panel.addView(updateHeader);
+        panel.addView(toolRow("Check for updates",
+                "You are on " + Updater.currentVersion() + " \u00b7 GitHub releases",
+                v -> {
+                    dialog.dismiss();
+                    checkForUpdatesNow();
+                }));
+        panel.addView(switchRow("Auto update check",
+                "Asks once per app open while on Wi-Fi or mobile data",
+                Updater.enabled(this),
+                on -> {
+                    Updater.setEnabled(this, on);
+                    status.setText(on ? "Update checks are on."
+                            : "Update checks are off. The app makes no network calls.");
+                }));
+
         TextView themeHeader = text("APPEARANCE", 10, ACCENT, true);
         themeHeader.setLetterSpacing(0.14f);
         themeHeader.setPadding(0, dp(10), 0, dp(8));
@@ -1936,6 +2014,109 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    private interface ToggleHandler {
+        void onChange(boolean value);
+    }
+
+    private View switchRow(String title, String subtitle, boolean on,
+                           final ToggleHandler onChange) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(14), dp(12));
+        row.setBackground(Surface.raised(this, 16, BTN, STROKE, palette.gloss(0.11f)));
+        Surface.elevate(row, 16, 3);
+        Surface.sinkOnPress(row, 3);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(8);
+        row.setLayoutParams(lp);
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.addView(text(title, 14, TEXT, true));
+        texts.addView(text(subtitle, 11, MUTED, false));
+        row.addView(texts, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        CheckBox box = new CheckBox(this);
+        box.setChecked(on);
+        box.setClickable(false);
+        box.setFocusable(false);
+        box.setButtonTintList(ColorStateList.valueOf(ACCENT));
+        row.addView(box);
+        row.setOnClickListener(v -> {
+            boolean next = !box.isChecked();
+            box.setChecked(next);
+            onChange.onChange(next);
+        });
+        return row;
+    }
+
+    // ---------------------------------------------------------------- updates
+
+    /** One quiet check per app open. The dialog only appears when something newer exists. */
+    private void maybeCheckForUpdate() {
+        if (updateChecked || !Updater.enabled(this)) return;
+        updateChecked = true;
+        Updater.check(this, false, (release, error) -> {
+            if (release == null) return;
+            if (!Updater.isNewer(release.version, Updater.currentVersion())) return;
+            if (release.version.equals(Updater.skippedVersion(this))) return;
+            showUpdateDialog(release);
+        });
+    }
+
+    private void checkForUpdatesNow() {
+        Updater.clearSkipped(this);
+        status.setText("Checking GitHub for a newer version\u2026");
+        Updater.check(this, true, (release, error) -> {
+            if (error != null) {
+                status.setText("Update check failed: " + error);
+                return;
+            }
+            if (release == null
+                    || !Updater.isNewer(release.version, Updater.currentVersion())) {
+                status.setText("You are on the newest version ("
+                        + Updater.currentVersion() + ").");
+                return;
+            }
+            showUpdateDialog(release);
+        });
+    }
+
+    private void showUpdateDialog(Updater.Release release) {
+        StringBuilder message = new StringBuilder("Version ").append(release.version)
+                .append(" is out. You are on ").append(Updater.currentVersion())
+                .append(".\n\nDownloading from GitHub needs a browser; the app never "
+                        + "installs anything by itself.");
+        String notes = release.notes == null ? "" : release.notes.trim();
+        if (!notes.isEmpty()) {
+            if (notes.length() > 700) notes = notes.substring(0, 700) + "\u2026";
+            message.append("\n\n").append(notes);
+        }
+        final String link = release.apkUrl != null && !release.apkUrl.isEmpty()
+                ? release.apkUrl : release.pageUrl;
+        new AlertDialog.Builder(this)
+                .setTitle("Update available")
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton("Download", (d, w) -> openLink(link))
+                .setNeutralButton("Skip this version",
+                        (d, w) -> Updater.skipVersion(this, release.version))
+                .setNegativeButton("Not now", null)
+                .show();
+    }
+
+    private void openLink(String url) {
+        if (url == null || url.isEmpty()) return;
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception e) {
+            status.setText("No app on this phone can open that link.");
+        }
+    }
+
     private void switchCategory(int index) {
         if (index < 0 || index >= categories.size()) return;
         category = categories.get(index);
@@ -2071,6 +2252,11 @@ public class MainActivity extends Activity {
                 + "Phone: " + Build.MANUFACTURER + " " + Build.MODEL + "\n"
                 + "Android: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")\n\n"
                 + "Database: " + categories.size() + " categories, " + remotes + " remotes\n"
+                + "App: IR Voider " + Updater.currentVersion()
+                + " (build " + BuildConfig.VERSION_CODE + ")\n"
+                + "Update check: " + (Updater.enabled(this) ? "on" : "off")
+                + (Updater.knownLatest(this) == null ? ""
+                        : " \u00b7 latest seen " + Updater.knownLatest(this)) + "\n"
                 + "Current: " + currentText + "\n\n"
                 + "Tips:\n"
                 + "\u2022 Point the top edge straight at the device receiver.\n"
@@ -2088,11 +2274,15 @@ public class MainActivity extends Activity {
     private void showAbout() {
         new AlertDialog.Builder(this)
                 .setTitle("About")
-                .setMessage("Universal Remote \u2014 IR only, no internet permission.\n\n"
+                .setMessage("IR Voider " + Updater.currentVersion()
+                        + " \u2014 IR only. No account, no ads, no tracking.\n\n"
                         + "Codes from Flipper-IRDB (CC0). Protocol encoding based on "
                         + "Flipper Zero firmware and IRremoteESP8266.\n\n"
                         + "The phone's IR LED power cannot be amplified in software. "
-                        + "Boost repeats frames to improve reliability.")
+                        + "Boost repeats frames to improve reliability.\n\n"
+                        + "The internet permission is used only by the optional update "
+                        + "check in More \u2192 Updates. With it switched off this app "
+                        + "never opens a connection.")
                 .setPositiveButton("Close", null)
                 .show();
     }

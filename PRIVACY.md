@@ -1,11 +1,13 @@
 # Privacy Policy — IR Voider
 
-**Effective: 2026-10-29**
+**Effective: 2026-10-30**
 
 Hosted version: https://saintedkyle.github.io/ir-voider/privacy.html
 
 IR Voider is an offline Android IR remote. It does not collect, transmit or sell
-personal data.
+personal data. Every remote feature works with the radio switched off. The single
+exception is the optional update check described below, which you can turn off in
+one tap.
 
 ## What the app accesses
 
@@ -14,6 +16,21 @@ personal data.
 - **Files you choose** — when you import a `.ir` capture, Android's file picker
   gives the app temporary read access to that single file. The file is parsed
   locally and is not uploaded.
+- **Network** — `INTERNET` and `ACCESS_NETWORK_STATE`, used only by the optional
+  update check. See the next section.
+
+## The optional update check
+
+- It requests one public URL: `https://api.github.com/repos/saintedKyle/ir-voider/releases/latest`.
+- It runs at most once per app open, only when the phone reports an internet
+  connection, and only to read a version number.
+- Nothing from the app is sent with the request — no device id, no account, no
+  saved remotes, no settings. GitHub sees the request like any web visitor would
+  (its server logs your IP address; that is GitHub's logging, not the app's).
+- It never downloads or installs anything. If a newer version exists the app shows
+  a dialog and you choose Download, Skip this version or Not now.
+- Turn it off under **≡ More → Updates → Auto update check**. With it off the app
+  makes no network request of any kind, and the `INTERNET` permission goes unused.
 
 ## What the app stores
 
@@ -28,7 +45,7 @@ is not copied to Google Drive or another cloud service by the app.
 
 ## What the app does not do
 
-- No `INTERNET` permission and no network code.
+- No network use beyond the optional update check above.
 - No accounts, ads, analytics, crash reporting or third-party SDKs.
 - No location, contacts, camera, microphone or storage-wide access.
 - No tracking of which buttons you press.
