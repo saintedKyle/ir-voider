@@ -251,6 +251,19 @@ public class ConfigsActivity extends Activity {
                 11, MUTED, false));
 
 
+        CheckBox irOverride = new CheckBox(this);
+        irOverride.setText("Try IR anyway (phone reports NO IR)");
+        irOverride.setTextColor(TEXT);
+        irOverride.setButtonTintList(ColorStateList.valueOf(ACCENT));
+        irOverride.setChecked(DeviceStore.irOverride(this));
+        irOverride.setOnCheckedChangeListener((buttonView, isChecked) ->
+                DeviceStore.setIrOverride(ConfigsActivity.this, isChecked));
+        settings.addView(irOverride);
+        settings.addView(text(
+                "Only for phones that have an IR blaster but Android reports NO IR. "
+                        + "It cannot create IR hardware; if the phone has no emitter, nothing happens.",
+                11, MUTED, false));
+
         CheckBox forceMode = new CheckBox(this);
         forceMode.setText("Force mode (3x repeats, 25 ms gaps)");
         forceMode.setTextColor(TEXT);

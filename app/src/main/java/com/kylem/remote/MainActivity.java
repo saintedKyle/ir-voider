@@ -169,7 +169,9 @@ public class MainActivity extends Activity {
     private ProgressBar progress;
     private TextView scanCount;
     private TextView scanName;
+    private TextView scanHistoryView;
     private Button pauseButton;
+    private final java.util.ArrayDeque<String> scanHistory = new java.util.ArrayDeque<>();
 
     private Remote current;
     private boolean adjusting;
@@ -991,8 +993,12 @@ public class MainActivity extends Activity {
     }
 
     private void transmit(Code code, int repeats) {
-        if (ir == null || !ir.hasIrEmitter()) {
-            status.setText("No IR emitter on this phone.");
+        if (ir == null) {
+            status.setText("No IR service on this phone.");
+            return;
+        }
+        if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
+            status.setText("No IR emitter reported. Enable IR override in settings to try anyway.");
             return;
         }
         if (irExecutor.isShutdown()) return;
@@ -1066,6 +1072,25 @@ public class MainActivity extends Activity {
         root.addView(text("Watch the device. When it reacts, tap It worked.",
                 12, MUTED, false));
 
+        LinearLayout historyBox = new LinearLayout(this);
+        historyBox.setOrientation(LinearLayout.VERTICAL);
+        historyBox.setPadding(dp(14), dp(10), dp(14), dp(10));
+        GradientDrawable hbg = new GradientDrawable();
+        hbg.setColor(0xFF0A0A0A);
+        hbg.setCornerRadius(dp(16));
+        hbg.setStroke(dp(1), STROKE);
+        historyBox.setBackground(hbg);
+        TextView historyLabel = text("LAST 5 SCANNED", 9, MUTED, true);
+        historyLabel.setLetterSpacing(0.12f);
+        historyBox.addView(historyLabel);
+        scanHistoryView = text("Nothing scanned yet.", 11, MUTED, false);
+        scanHistoryView.setPadding(0, dp(5), 0, 0);
+        historyBox.addView(scanHistoryView);
+        LinearLayout.LayoutParams historyLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        historyLp.topMargin = dp(16);
+        root.addView(historyBox, historyLp);
+
         root.addView(new Space(this), new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -1102,6 +1127,8 @@ public class MainActivity extends Activity {
         root.addView(text("Pause to stop sending. Previous replays; Skip 5 jumps ahead.",
                 11, MUTED, false));
 
+        scanHistory.clear();
+        scanHistoryView.setText("Nothing scanned yet.");
         scannerDialog.setContentView(root);
         scannerDialog.setCanceledOnTouchOutside(false);
         scannerDialog.setOnCancelListener(d -> stopAutoFind("Stopped."));
@@ -1119,6 +1146,20 @@ public class MainActivity extends Activity {
             scannerDialog.dismiss();
             scannerDialog = null;
         }
+    }
+
+    private void recordScanHistory(Candidate c) {
+        if (scanHistoryView == null) return;
+        String line = nextCandidate + ". " + c.remote.brand + " — "
+                + pretty(c.remote.name) + c.label;
+        scanHistory.addFirst(line);
+        while (scanHistory.size() > 5) scanHistory.removeLast();
+        StringBuilder sb = new StringBuilder();
+        for (String item : scanHistory) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append(item);
+        }
+        scanHistoryView.setText(sb.toString());
     }
 
     private void pauseScan() {
@@ -1146,8 +1187,8 @@ public class MainActivity extends Activity {
 
     private void startAutoFind() {
         if (running) return;
-        if (ir == null || !ir.hasIrEmitter()) {
-            status.setText("No IR emitter on this phone.");
+        if (ir == null || (!ir.hasIrEmitter() && !DeviceStore.irOverride(this))) {
+            status.setText("No IR emitter reported. Enable IR override in settings to try anyway.");
             return;
         }
         candidates.clear();
@@ -1932,6 +1973,7 @@ public class MainActivity extends Activity {
 
     private void showDiagnostics() {
         boolean ready = ir != null && ir.hasIrEmitter();
+        boolean override = DeviceStore.irOverride(this);
         int remotes = 0;
         for (Category c : categories) remotes += c.remoteCount;
         String currentText = current == null ? "none"

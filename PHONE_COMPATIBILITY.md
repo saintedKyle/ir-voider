@@ -42,6 +42,13 @@ hardware by region and model number, so verify before buying or relying on it.
 - **USB-C / headphone-jack IR dongles** — Android's standard API targets the
   built-in emitter; dongles need vendor-specific apps.
 
+## If the app says NO IR
+
+Android's `hasIrEmitter()` can report false even on a phone that has an IR blaster,
+usually because the vendor hides the standard API. Try **⚙ → IR override** (advanced)
+and test a real device. If the phone exposes no IR service at all, no app can make
+it emit IR. The override only unlocks misreported hardware; it does not add hardware.
+
 ## How to check your phone in 10 seconds
 
 1. Install IR Voider. The **Now using** card shows **IR READY** or **NO IR**.

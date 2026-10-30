@@ -64,6 +64,12 @@ default so they cannot double-fire.
 **Software cannot amplify the IR LED.** Android exposes frequency and pattern,
 not current or power. Real range improvements require an external IR blaster.
 
+## IR override
+
+Some phones have an IR emitter but report "no IR" to Android. Enable **IR override**
+in IR & scan settings to try transmission anyway. It cannot create an emitter or
+make a non-IR phone control devices; if the service is missing, nothing is sent.
+
 ## No learning on this phone
 
 A phone with only an IR emitter cannot receive IR. The Redmi Note 10 5G has no

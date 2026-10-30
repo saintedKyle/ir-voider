@@ -150,6 +150,14 @@ public final class DeviceStore {
         prefs(c).edit().putBoolean("boostAll", value).apply();
     }
 
+    public static boolean irOverride(Context c) {
+        return prefs(c).getBoolean("irOverride", false);
+    }
+
+    public static void setIrOverride(Context c, boolean value) {
+        prefs(c).edit().putBoolean("irOverride", value).apply();
+    }
+
     public static boolean forceMode(Context c) {
         return prefs(c).getBoolean("forceMode", false);
     }

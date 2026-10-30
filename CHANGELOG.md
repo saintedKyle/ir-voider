@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4 — 2026-10-29
+
+- Scanner shows the **last 5 codes tried**, newest first.
+- Added **IR override** for phones that have an emitter but report NO IR.
+- Clearer AC Power On/Off guidance.
+- Force mode remains repeat-based; IR still cannot pass solid walls or be amplified.
+
 ## 1.3 — 2026-10-29
 
 - Searchable brand picker for the expanded model list.

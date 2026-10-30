@@ -7,11 +7,11 @@
 A clean, offline IR remote for **Android phones with an IR blaster**. No ads, no
 account, no internet permission — just your phone's IR LED.
 
-**Download:** [IRVoider-1.3.apk](dist/IRVoider-1.3.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md) · **Google Play:** [release guide](PLAY_STORE.md) (pending)
+**Download:** [IRVoider-1.4.apk](dist/IRVoider-1.4.apk) · **Phones:** [compatibility](PHONE_COMPATIBILITY.md) · **How it works:** [HOW_IT_WORKS.md](HOW_IT_WORKS.md) · **Google Play:** [release guide](PLAY_STORE.md) (pending)
 
 ## Install on your phone
 
-1. Download `IRVoider-1.3.apk` to the phone (browser, USB, or cloud drive).
+1. Download `IRVoider-1.4.apk` to the phone (browser, USB, or cloud drive).
 2. Tap the APK. Android asks to allow installs from this source — allow it.
 3. Install **IR Voider** and open it.
 
@@ -48,6 +48,8 @@ on iPhones, iPads, tablets, TVs, PCs, or phones without an IR emitter.
   except POWER.
 - Import raw `.ir` captures as "Learned" remotes.
 - Opt-in **AC power repeat** for air conditioners that ignore a single frame.
+- Scanner **last-5 history** and an advanced **IR override** for phones that report
+  NO IR despite having an emitter.
 - **No internet permission.** Works in airplane mode.
 
 Air conditioners include the buttons captured in the database (power, temp,
