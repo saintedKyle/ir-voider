@@ -10,9 +10,11 @@
   <main class="wrap">
     <p><a href="index.html">← IR Voider</a></p>
     <h1>Privacy Policy</h1>
-    <p><strong>Effective: 2026-10-29</strong></p>
+    <p><strong>Effective: 2026-10-30</strong></p>
     <p>IR Voider is an offline Android IR remote. It does not collect, transmit or sell
-      personal data.</p>
+      personal data. Every remote feature works with the radio switched off. The single
+      exception is the optional update check described below, which you can turn off in
+      one tap.</p>
 
     <h2>What the app accesses</h2>
     <ul>
@@ -21,6 +23,24 @@
       <li><strong>Files you choose</strong> — when you import a <code>.ir</code> capture, Android's
         file picker gives the app temporary read access to that single file. The file is
         parsed locally and is not uploaded.</li>
+      <li><strong>Network</strong> — <code>INTERNET</code> and <code>ACCESS_NETWORK_STATE</code>,
+        used only by the optional update check. See the next section.</li>
+    </ul>
+
+    <h2>The optional update check</h2>
+    <ul>
+      <li>It requests one public URL:
+        <code>https://api.github.com/repos/saintedKyle/ir-voider/releases/latest</code>.</li>
+      <li>It runs at most once per app open, only when the phone reports an internet
+        connection, and only to read a version number.</li>
+      <li>Nothing from the app is sent with the request — no device id, no account, no
+        saved remotes, no settings. GitHub sees the request like any web visitor would;
+        its server logs your IP address, which is GitHub's logging, not the app's.</li>
+      <li>It never downloads or installs anything. If a newer version exists the app shows
+        a dialog and you choose Download, Skip this version or Not now.</li>
+      <li>Turn it off under <strong>≡ More → Updates → Auto update check</strong>. With it off
+        the app makes no network request of any kind, and the <code>INTERNET</code> permission
+        goes unused.</li>
     </ul>
 
     <h2>What the app stores</h2>
@@ -35,7 +55,7 @@
 
     <h2>What the app does not do</h2>
     <ul>
-      <li>No <code>INTERNET</code> permission and no network code.</li>
+      <li>No network use beyond the optional update check above.</li>
       <li>No accounts, ads, analytics, crash reporting or third-party SDKs.</li>
       <li>No location, contacts, camera, microphone or storage-wide access.</li>
       <li>No tracking of which buttons you press.</li>
