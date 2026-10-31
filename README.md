@@ -53,6 +53,10 @@ this repository's Releases.
 - Air-conditioner temperature, mode, fan and swing where the profile supports it.
 - Import raw `.ir` captures as learned remotes.
 - **IR override** for phones that report NO IR despite having an emitter.
+- **DIY jack blaster** — send IR out of the 3.5mm port. The app plays a 19 kHz tone
+  and a pair of IR LEDs wired back-to-back turns it into 38 kHz of light, because a
+  48 kHz audio output cannot produce 38 kHz itself. Set up under **≡ More → Jack
+  blaster**. Needs two LEDs and a 47–100 Ω resistor; range is about 1–2 m.
 - **Scan clock** — elapsed time and an estimate of what is left, paused correctly
   when you pause, with the screen held awake for the whole run.
 - **Optional update check** — the only network code in the app. It asks GitHub for
@@ -101,8 +105,11 @@ See **[PHONE_COMPATIBILITY.md](PHONE_COMPATIBILITY.md)** for the **535-listing I
 phone list**, the confirmed model, historical IR phones that cannot run the app,
 and a 10-second check. It is a public-data snapshot, not a guarantee — same-name
 phones can ship with or without IR by region. IR blasters are not part of
-Android's requirements, so the app checks the hardware and shows **IR READY** or
-**NO IR**.
+Android's requirements, so the app asks the hardware and shows **IR READY** (an
+emitter the OS reports), **JACK BLASTER** (jack sending is on and the port reports a
+plug) or **NO IR**. No label can prove light left an LED, because a phone has no IR
+receiver to look for it — the jack screen reports where the sound was *measured* going
+instead, which is the closest thing to a real check.
 
 ## Privacy
 

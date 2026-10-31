@@ -9,8 +9,10 @@ package com.kylem.remote;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -176,6 +178,7 @@ public class MainActivity extends Activity {
     private final Button[] speedButtons = new Button[4];
     private CheckBox allBrands;
     private TextView status;
+    private TextView irChip;
     private TextView deviceNameText;
     private TextView modelText;
     private TextView categoryLabel;
@@ -201,6 +204,7 @@ public class MainActivity extends Activity {
     private long pausedTotal;
     private long pauseStartedAt;
     private boolean updateChecked;
+    private BroadcastReceiver jackPlug;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private final Runnable timerTick = new Runnable() {
         @Override
@@ -466,15 +470,11 @@ public class MainActivity extends Activity {
         nowLabel.setLetterSpacing(0.12f);
         nowRow.addView(nowLabel, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        boolean hasIr = ir != null && ir.hasIrEmitter();
-        int chipTint = hasIr ? ACCENT : RED;
-        TextView irChip = text(hasIr ? "IR READY" : "NO IR", 9,
-                Surface.blend(chipTint, TEXT, 0.35f), true);
+        irChip = text("", 9, TEXT, true);
         irChip.setLetterSpacing(0.08f);
-        irChip.setBackground(pill(Surface.blend(CARD, chipTint, 0.18f),
-                Surface.blend(CARD, chipTint, 0.45f)));
         irChip.setPadding(dp(8), dp(3), dp(8), dp(3));
         nowRow.addView(irChip);
+        refreshIrChip();
         currentCard.addView(nowRow);
         deviceNameText = text("Not selected", 20, TEXT, true);
         deviceNameText.setPadding(0, dp(4), 0, 0);
@@ -998,6 +998,50 @@ public class MainActivity extends Activity {
         status.setText("Sent " + labelFor(key) + ".");
     }
 
+    private static final int EMITTER_NONE = 0;
+    private static final int EMITTER_JACK = 1;
+    private static final int EMITTER_BUILT = 2;
+
+    /**
+     * Which emitter the phone can actually evidence. Turning the jack mode on is a
+     * deliberate choice, so it wins over a built-in emitter; otherwise the built-in
+     * report wins, and with neither the chip says NO IR and means it.
+     */
+    private int emitterState() {
+        if (JackBlaster.active(this)) return EMITTER_JACK;
+        if (ir != null && ir.hasIrEmitter()) return EMITTER_BUILT;
+        return EMITTER_NONE;
+    }
+
+    /**
+     * The chip states only what a sensor proves: an emitter the OS reports, or a
+     * plug in the port. Nothing here can confirm that light left an LED, so the
+     * jack path is never labelled ready.
+     */
+    private void refreshIrChip() {
+        if (irChip == null) return;
+        int state = emitterState();
+        int tint = state == EMITTER_BUILT ? ACCENT
+                : state == EMITTER_JACK ? Surface.blend(ACCENT, RED, 0.5f) : RED;
+        irChip.setText(state == EMITTER_BUILT ? "IR READY"
+                : state == EMITTER_JACK ? "JACK BLASTER" : "NO IR");
+        irChip.setTextColor(Surface.blend(tint, TEXT, 0.35f));
+        irChip.setBackground(pill(Surface.blend(CARD, tint, 0.18f),
+                Surface.blend(CARD, tint, 0.45f)));
+        boolean setup = state != EMITTER_BUILT;
+        irChip.setClickable(setup);
+        irChip.setOnClickListener(setup ? v -> showJackDialog() : null);
+    }
+
+    private String noEmitterMessage() {
+        if (JackBlaster.enabled(this)) {
+            return "The port reports nothing plugged in. Push the blaster home, "
+                    + "or switch on Force in More \u2192 Jack blaster.";
+        }
+        return "No IR emitter reported. Set up a jack blaster in More \u2192 Jack "
+                + "blaster, or enable IR override to try anyway.";
+    }
+
     private void transmit(Code code, boolean allowRepeat) {
         int repeats = DeviceStore.repeats(this);
         if (allowRepeat && DeviceStore.forceMode(this)) repeats = Math.max(3, repeats);
@@ -1005,30 +1049,48 @@ public class MainActivity extends Activity {
     }
 
     private void transmit(Code code, int repeats) {
-        if (ir == null) {
-            status.setText("No IR service on this phone.");
-            return;
-        }
-        if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
-            status.setText("No IR emitter reported. Enable IR override in settings to try anyway.");
-            return;
+        final boolean jack = emitterState() == EMITTER_JACK;
+        if (!jack) {
+            if (ir == null) {
+                status.setText("No IR service on this phone.");
+                return;
+            }
+            if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
+                status.setText(noEmitterMessage());
+                return;
+            }
         }
         if (irExecutor.isShutdown()) return;
         if (!irBusy.compareAndSet(false, true)) return;
         final int count = Math.max(1, Math.min(3, repeats));
         try {
             irExecutor.execute(() -> {
+            String failure = null;
             try {
                 for (int i = 0; i < count; i++) {
-                    ir.transmit(code.freq, code.pattern);
+                    if (jack) {
+                        JackBlaster.Result sent = JackBlaster.send(this, code);
+                        if (!sent.ok) {
+                            failure = sent.detail;
+                            break;
+                        }
+                    } else {
+                        ir.transmit(code.freq, code.pattern);
+                    }
                     if (i + 1 < count) Thread.sleep(DeviceStore.forceMode(this) ? 25 : 50);
                 }
             } catch (InterruptedException ignored) {
             } catch (Exception e) {
-                runOnUiThread(() -> status.setText("IR send failed: " + e.getMessage()));
-                } finally {
-                    irBusy.set(false);
+                failure = e.getMessage() == null
+                        ? e.getClass().getSimpleName() : e.getMessage();
+            } finally {
+                irBusy.set(false);
+                final String why = failure;
+                if (why != null) {
+                    runOnUiThread(() -> status.setText(
+                            (jack ? "Jack send failed: " : "IR send failed: ") + why));
                 }
+            }
             });
         } catch (RejectedExecutionException e) {
             irBusy.set(false);
@@ -1236,8 +1298,10 @@ public class MainActivity extends Activity {
 
     private void startAutoFind() {
         if (running) return;
-        if (ir == null || (!ir.hasIrEmitter() && !DeviceStore.irOverride(this))) {
-            status.setText("No IR emitter reported. Enable IR override in settings to try anyway.");
+        boolean allowed = emitterState() != EMITTER_NONE
+                || (ir != null && DeviceStore.irOverride(this));
+        if (!allowed) {
+            status.setText(noEmitterMessage());
             return;
         }
         candidates.clear();
@@ -1334,6 +1398,12 @@ public class MainActivity extends Activity {
             return;
         }
         Candidate c = candidates.get(nextCandidate);
+        if (irBusy.get()) {
+            // A built-in emitter answers in milliseconds; a jack tone can take
+            // seconds. Wait it out instead of burning a code it never saw.
+            handler.postDelayed(this::tickAutoFind, 120);
+            return;
+        }
         nextCandidate++;
         transmit(c.code, "Air Conditioner".equals(current.category)
                 && DeviceStore.acPowerRepeat(this));
@@ -1847,6 +1917,19 @@ public class MainActivity extends Activity {
                             : "Update checks are off. The app makes no network calls.");
                 }));
 
+        TextView jackHeader = text("JACK BLASTER", 10, ACCENT, true);
+        jackHeader.setLetterSpacing(0.14f);
+        jackHeader.setPadding(0, dp(10), 0, dp(8));
+        panel.addView(jackHeader);
+        panel.addView(toolRow("DIY IR blaster on the 3.5mm plug",
+                JackBlaster.plugPresent(this)
+                        ? "Something is in the port \u00b7 2 LEDs back-to-back needed"
+                        : "Port reads empty \u00b7 force it if your plug has no mic line",
+                v -> {
+                    dialog.dismiss();
+                    showJackDialog();
+                }));
+
         TextView themeHeader = text("APPEARANCE", 10, ACCENT, true);
         themeHeader.setLetterSpacing(0.14f);
         themeHeader.setPadding(0, dp(10), 0, dp(8));
@@ -2240,15 +2323,228 @@ public class MainActivity extends Activity {
         status.setText("Imported “" + name + "”.");
     }
 
+    private String jackVerdict;
+
+    /** Rebuilt wholesale so the shaded button styling survives a change of level. */
+    private void buildDriveRow(LinearLayout row, TextView readout, TextView verdict) {
+        row.removeAllViews();
+        int chosen = JackBlaster.gainPct(this);
+        int[] levels = {25, 50, 75, 100};
+        for (int i = 0; i < levels.length; i++) {
+            final int level = levels[i];
+            Button b = styledButton(level + "%", level == chosen ? ACTIVE : BTN, 13);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+            lp.setMargins(dp(i == 0 ? 0 : 3), 0, dp(3), 0);
+            b.setOnClickListener(v -> {
+                JackBlaster.setGainPct(this, level);
+                buildDriveRow(row, readout, verdict);
+                updateJackReadout(readout, verdict);
+            });
+            row.addView(b, lp);
+        }
+    }
+
+    private void updateJackReadout(TextView out, TextView verdict) {
+        String state = JackBlaster.describe(this);
+        if (!JackBlaster.enabled(this)) {
+            state += "\nSending: jack mode is OFF \u2014 the phone still uses its own emitter.";
+        } else if (emitterState() == EMITTER_BUILT) {
+            state += "\nSending: built-in emitter (jack mode is on but the port is empty).";
+        } else {
+            state += "\nSending: through the jack.";
+        }
+        int volume = JackBlaster.mediaVolumePct(this);
+        if (volume < 100) {
+            state += "\n\u26a0 Media volume is at " + volume + "%. The drive level is capped by it.";
+        }
+        out.setText(state);
+
+        if (jackVerdict == null) {
+            verdict.setText("Never measured. Run the test tone and this line will "
+                    + "say whether the sound actually reached the port.");
+            verdict.setTextColor(MUTED);
+        } else if (jackVerdict.startsWith("OK")) {
+            verdict.setText(jackVerdict);
+            verdict.setTextColor(ACCENT);
+        } else {
+            verdict.setText(jackVerdict);
+            verdict.setTextColor(RED);
+        }
+    }
+
+    private void showJackDialog() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(BG);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(24), dp(52), dp(24), dp(28));
+        scroll.addView(panel);
+
+        TextView kicker = text("DIY BLASTER", 10, ACCENT, true);
+        kicker.setLetterSpacing(0.16f);
+        panel.addView(kicker);
+        TextView headline = text("Send IR through the jack", 28, TEXT, true);
+        headline.setPadding(0, dp(8), 0, dp(6));
+        panel.addView(headline);
+        panel.addView(text("A 48 kHz audio output cannot make a 38 kHz tone \u2014 its "
+                + "ceiling is 24 kHz. So this sends 19 kHz and lets the hardware do the "
+                + "doubling: two IR LEDs wired back-to-back, each lighting on the half of "
+                + "the wave the other blocks, which is 38 kHz of light to a TV.",
+                12, MUTED, false));
+
+        final LinearLayout live = card();
+        live.addView(text("STATUS", 10, ACCENT, true));
+        final TextView readout = text("", 12, TEXT, false);
+        readout.setPadding(0, dp(6), 0, 0);
+        live.addView(readout);
+        final TextView verdict = text("", 12, ACCENT, true);
+        verdict.setPadding(0, dp(10), 0, 0);
+        live.addView(verdict);
+        addCard(panel, live);
+
+        LinearLayout testRow = new LinearLayout(this);
+        testRow.setOrientation(LinearLayout.HORIZONTAL);
+        Button tone = styledButton("Test tone 1.2 s", BTN, 13);
+        Button power = styledButton("Send POWER", BTN, 13);
+        LinearLayout.LayoutParams half = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        half.rightMargin = dp(4);
+        LinearLayout.LayoutParams other = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        other.leftMargin = dp(4);
+        testRow.addView(tone, half);
+        testRow.addView(power, other);
+        LinearLayout.LayoutParams testLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        testLp.bottomMargin = dp(10);
+        panel.addView(testRow, testLp);
+
+        Runnable emit = () -> {
+            if (irExecutor.isShutdown() || !irBusy.compareAndSet(false, true)) return;
+            tone.setEnabled(false);
+            power.setEnabled(false);
+            try {
+                irExecutor.execute(() -> {
+                    JackBlaster.Result r = JackBlaster.testTone(this, 1200);
+                    jackVerdict = r.ok ? "OK \u2014 measured route: " + r.routed
+                            + (r.detail == null ? "" : " \u00b7 " + r.detail)
+                            : "FAILED \u2014 " + (r.detail == null ? r.routed : r.detail);
+                    irBusy.set(false);
+                    runOnUiThread(() -> {
+                        tone.setEnabled(true);
+                        power.setEnabled(true);
+                        updateJackReadout(readout, verdict);
+                        refreshIrChip();
+                    });
+                });
+            } catch (RejectedExecutionException e) {
+                irBusy.set(false);
+                tone.setEnabled(true);
+                power.setEnabled(true);
+            }
+        };
+        tone.setOnClickListener(v -> emit.run());
+        power.setOnClickListener(v -> {
+            Code code = null;
+            if (current != null) {
+                code = current.buttons.get("power");
+                if (code == null && !current.buttons.isEmpty()) {
+                    code = current.buttons.values().iterator().next();
+                }
+            }
+            if (code == null) {
+                status.setText("Pick a remote first, then press Send POWER.");
+                return;
+            }
+            transmit(code, 2);
+            status.setText("Sent a code through the jack \u2014 watch the status chip.");
+        });
+
+        panel.addView(switchRow("Send through the jack",
+                "Use the DIY blaster instead of the phone's own emitter",
+                JackBlaster.enabled(this),
+                on -> {
+                    JackBlaster.setEnabled(this, on);
+                    refreshIrChip();
+                    updateJackReadout(readout, verdict);
+                }));
+        panel.addView(switchRow("Force, even if the port reads empty",
+                "A plug with only LEDs may not trip the jack sensor",
+                JackBlaster.forced(this),
+                on -> {
+                    JackBlaster.setForced(this, on);
+                    refreshIrChip();
+                    updateJackReadout(readout, verdict);
+                }));
+        panel.addView(switchRow("Opposite-phase stereo",
+                "Works for both wirings and doubles the voltage across tip and ring",
+                JackBlaster.invertedStereo(this),
+                on -> {
+                    JackBlaster.setInvertedStereo(this, on);
+                    updateJackReadout(readout, verdict);
+                }));
+
+        TextView driveHeader = text("DRIVE LEVEL", 10, ACCENT, true);
+        driveHeader.setLetterSpacing(0.14f);
+        driveHeader.setPadding(0, dp(12), 0, dp(8));
+        panel.addView(driveHeader);
+        LinearLayout driveRow = new LinearLayout(this);
+        driveRow.setOrientation(LinearLayout.HORIZONTAL);
+        buildDriveRow(driveRow, readout, verdict);
+        panel.addView(driveRow);
+        panel.addView(text("Start at 50% if your blaster has no resistor. Full drive "
+                + "pushes tens of milliamps through the phone's audio chip.",
+                11, MUTED, false));
+
+        TextView gearHeader = text("WHAT YOUR BLASTER NEEDS", 10, ACCENT, true);
+        gearHeader.setLetterSpacing(0.14f);
+        gearHeader.setPadding(0, dp(14), 0, dp(8));
+        panel.addView(gearHeader);
+        panel.addView(text("\u2022 Two IR LEDs wired back-to-back, not one. A single LED "
+                + "only lights on half the wave, so it emits 19 kHz and the TV ignores it.\n"
+                + "\u2022 A 47\u2013100 \u03a9 resistor in series. Without one the audio "
+                + "amplifier is shorted to about 1.3 V.\n"
+                + "\u2022 Media volume at 100%. The tone cannot be made louder than the "
+                + "phone's own volume allows.\n"
+                + "\u2022 Expect 1\u20132 m, pointed straight at the receiver. This is a "
+                + "weak blaster, not a stronger one.\n"
+                + "\u2022 The phone must wait for each tone to finish, so a scan of long "
+                + "air-conditioner codes runs slower than the built-in emitter.",
+                12, MUTED, false));
+
+        Button close = styledButton("Close", BTN, 14);
+        close.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        closeLp.topMargin = dp(14);
+        panel.addView(close, closeLp);
+
+        dialog.setOnDismissListener(d -> refreshIrChip());
+        dialog.setContentView(scroll);
+        dialog.show();
+        updateJackReadout(readout, verdict);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(BG));
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+        }
+    }
+
     private void showDiagnostics() {
         boolean ready = ir != null && ir.hasIrEmitter();
         boolean override = DeviceStore.irOverride(this);
+        int source = emitterState();
         int remotes = 0;
         for (Category c : categories) remotes += c.remoteCount;
         String currentText = current == null ? "none"
                 : current.category + " • " + current.brand + " — "
                 + pretty(current.name);
+        String sending = source == EMITTER_JACK ? "the jack blaster"
+                : source == EMITTER_BUILT ? "the built-in emitter"
+                : "nothing (no emitter" + (override ? ", override on)" : ")");
         String message = "IR emitter: " + (ready ? "READY" : "NOT AVAILABLE") + "\n"
+                + "Sending by: " + sending + "\n"
                 + "Phone: " + Build.MANUFACTURER + " " + Build.MODEL + "\n"
                 + "Android: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")\n\n"
                 + "Database: " + categories.size() + " categories, " + remotes + " remotes\n"
@@ -2257,9 +2553,12 @@ public class MainActivity extends Activity {
                 + "Update check: " + (Updater.enabled(this) ? "on" : "off")
                 + (Updater.knownLatest(this) == null ? ""
                         : " \u00b7 latest seen " + Updater.knownLatest(this)) + "\n"
-                + "Current: " + currentText + "\n\n"
+                + "Current: " + currentText + "\n"
+                + (JackBlaster.enabled(this)
+                        ? "\nJack blaster\n" + JackBlaster.describe(this) + "\n" : "\n")
                 + "Tips:\n"
-                + "\u2022 Point the top edge straight at the device receiver.\n"
+                + "\u2022 Point the emitter straight at the device receiver: the top "
+                + "edge, or the plug if you send through the jack.\n"
                 + "\u2022 Try 0.5\u20131 m, then move back.\n"
                 + "\u2022 Enable Force mode for 3x repeats with 25 ms gaps.\n"
                 + "\u2022 ACs often need Repeat aircon POWER; protocols vary by model.\n"
@@ -2293,12 +2592,28 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (!categories.isEmpty()) syncFromPrefs();
+        if (jackPlug == null) {
+            jackPlug = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    refreshIrChip();
+                }
+            };
+            // A system-only broadcast, so no export flag is needed for it.
+            registerReceiver(jackPlug,
+                    new IntentFilter(android.media.AudioManager.ACTION_HEADSET_PLUG));
+        }
+        refreshIrChip();
     }
 
     @Override
     protected void onPause() {
         repeatKey = null;
         handler.removeCallbacks(repeatRunnable);
+        if (jackPlug != null) {
+            unregisterReceiver(jackPlug);
+            jackPlug = null;
+        }
         super.onPause();
     }
 
