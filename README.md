@@ -4,7 +4,8 @@
   <img src="docs/images/banner.png" alt="IR Voider — offline IR remote for Android phones" width="100%">
 </p>
 
-IR Voider turns an **Android phone with a built-in IR blaster** into a clean,
+IR Voider turns an **Android phone with an IR blaster** — built-in, or two LEDs you
+soldered onto the 3.5 mm jack — into a clean,
 offline universal remote. No ads, no account, no tracking — just the phone's
 IR LED.
 
@@ -18,8 +19,10 @@ IR LED.
    manager — allow it.
 3. Install **IR Voider** and open it.
 
-Requires **Android 6.0+** and a **built-in IR emitter**. It does not work on
-iPhones, iPads, tablets, TVs, PCs, or phones without IR hardware. On MIUI/HyperOS:
+Requires **Android 6.0+** and an IR emitter: either the phone's **built-in blaster**
+or a **DIY two-LED blaster on the 3.5 mm headset jack** (see the jack-blaster bullet
+below). It does not work on iPhones, iPads, tablets, TVs, PCs, or phones that have
+neither. On MIUI/HyperOS:
 **Settings → Apps → Special access → Install unknown apps**.
 
 The APK is sideloaded, so Android may show a warning. Only install builds from

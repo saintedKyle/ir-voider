@@ -2,7 +2,7 @@
 
 > **Brutally honest first:** there is **no official, complete registry** of every phone with an IR blaster. No manufacturer maintains one, and hundreds of pre-Android IR phones cannot run this app at all. This file lists **535 current/recent listings** from 91mobiles (checked 2026-10-30) plus a historical/global appendix. It is the largest public list I could verify, **not every IR phone ever made**. A missing phone may still work; a listed phone may not.
 
-IR Voider requires **Android 6.0+** and a **built-in consumer-IR emitter**. The app has no phone whitelist: it checks the Android IR service at runtime and shows **IR READY** or **NO IR**.
+IR Voider needs **Android 6.0+** and one of two emitters: a **built-in consumer-IR blaster**, or a **DIY IR blaster plugged into the 3.5mm headset port** (1.6.1 onwards — two IR LEDs wired back-to-back plus a 47–100 Ω resistor, driven by a 19 kHz tone the app generates; see the README's jack-blaster section). The app has no phone whitelist: it checks the Android IR service and the headset port at runtime and shows **IR READY**, **JACK BLASTER** or **NO IR**.
 
 ## Confirmed working
 
@@ -12,10 +12,10 @@ IR Voider requires **Android 6.0+** and a **built-in consumer-IR emitter**. The 
 
 ## How to check any phone in 10 seconds
 
-1. Install IR Voider and open it. The **Now using** card shows **IR READY** or **NO IR**.
-2. Look at the top edge for a small dark IR window. A camera can show a faint purple/white flash when you press POWER.
+1. Install IR Voider and open it. The **Now using** card shows **IR READY**, **JACK BLASTER** (tap it for the jack setup screen) or **NO IR**.
+2. Look at the top edge for a small dark IR window. A camera can show a faint purple/white flash when you press POWER — but many phone cameras filter IR, so seeing nothing does not prove the blaster is dead.
 3. If Android says **NO IR** but the phone physically has an emitter, try **Settings → IR override** (advanced). It can only unlock a misreported emitter; it cannot add hardware.
-4. If the phone exposes no IR service at all, no app can make it emit IR.
+4. If the phone exposes no IR service at all, no app can make it emit IR **from the phone's own body**. The 3.5mm jack is the one honest workaround: the app plays the code as a 19 kHz tone and a back-to-back LED pair turns that into 38 kHz light. Range is about 1–2 m, and it is weaker than a built-in blaster, not stronger.
 
 ## The 535-list status key
 
@@ -715,9 +715,10 @@ These can send IR, but they are not Android phones and cannot install IR Voider:
 
 ### Not supported by this app
 
-- iPhones, iPads, Android tablets, TVs, PCs, watches, and phones without an IR emitter.
+- iPhones, iPads, Android tablets, TVs, PCs and watches. Phones without a built-in emitter still work if you drive a DIY jack blaster instead (see above).
 - RF, Bluetooth, Wi-Fi and “smart” remotes that do not use infrared.
-- USB-C or 3.5 mm IR dongles: Android’s standard `ConsumerIrManager` targets the built-in emitter, not arbitrary dongles. A custom bridge is a separate hardware project.
+- **USB-C IR dongles.** Android's standard `ConsumerIrManager` only addresses the built-in emitter, and the app has no driver for vendor dongle chipsets. The 3.5 mm jack is supported for the passive two-LED build described here — nothing with its own controller is.
+- Commercial "smartphone IR adapter" dongles that expect a specific vendor app or a mic-bias supply line; the mic line carries 1–2 mA and cannot power a blaster.
 - Phones whose “IR” is only an IrDA data port, not a consumer-IR blaster.
 
 ## Why there can never be a perfect list
@@ -735,6 +736,6 @@ These can send IR, but they are not Android phones and cannot install IR Voider:
 - [Wikipedia — Mobile phones with infrared transmitter](https://en.wikipedia.org/wiki/Category:Mobile_phones_with_infrared_transmitter)
 - [GSMArena](https://www.gsmarena.com/) — individual spec verification
 
-**If your phone is not listed:** that does not mean it lacks IR. Install the app and read **IR READY / NO IR**. If you want a model added, send the exact model number and, if possible, a photo of the top edge and Settings → About phone.
+**If your phone is not listed:** that does not mean it lacks IR. Install the app and read **IR READY / JACK BLASTER / NO IR**. If you want a model added, send the exact model number and, if possible, a photo of the top edge and Settings → About phone.
 
-Last updated: **2026-10-30**.
+Last updated: **2026-10-31** (jack blaster added for 1.6.1).

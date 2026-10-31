@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>IR Voider — offline IR remote for Android phones</title>
-  <meta name="description" content="IR Voider is an offline IR remote for Android phones with a built-in IR blaster. No ads, no account, no tracking.">
+  <meta name="description" content="IR Voider is an offline IR remote for Android phones with a built-in IR blaster, or a DIY IR blaster on the 3.5mm headset jack. No ads, no account, no tracking.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
       <img src="images/icon.png" alt="IR Voider icon">
       <div>
         <h1>IR Voider</h1>
-        <p>The offline IR remote for Android phones with a built-in IR blaster.</p>
+        <p>The offline IR remote for Android phones with a built-in IR blaster — or a DIY one on the headset jack.</p>
         <span class="tag">Phone only · Android 6.0+ · no tracking</span>
       </div>
     </section>
@@ -22,8 +22,9 @@
     <a class="btn secondary" href="https://github.com/saintedKyle/ir-voider">Source on GitHub</a>
 
     <div class="note">
-      <strong>Requires a phone with an IR emitter.</strong> It does not work on iPhones,
-      iPads, tablets, PCs, or phones without IR hardware. Google Play release is pending.
+      <strong>Needs an IR emitter — built-in, or two IR LEDs wired back-to-back on the 3.5mm jack.</strong>
+      It does not work on iPhones, iPads, tablets, or PCs, and no app can add IR hardware
+      to a phone that has neither. Google Play release is pending.
     </div>
 
     <h2>What it does</h2>
@@ -34,6 +35,7 @@
       <div class="card"><h3>Saved devices</h3><p>Name your TV, AC or projector and switch between them.</p></div>
       <div class="card"><h3>Works offline</h3><p>Every remote and scan runs in airplane mode. No ads, no accounts, no analytics — the one optional network call is the update check, and you can switch it off.</p></div>
       <div class="card"><h3>Import</h3><p>Add raw <code>.ir</code> captures as a Learned remote.</p></div>
+      <div class="card"><h3>DIY jack blaster</h3><p>No built-in IR? The app plays each code as a 19 kHz tone out of the headset port for two back-to-back IR LEDs and a resistor. About 1–2 m, and the status chip tells you which emitter it measured.</p></div>
     </div>
 
     <h2>How it works</h2>
@@ -43,6 +45,13 @@
       line-of-sight: point the top edge at the device.</p>
     <p>The phone cannot receive IR, so it cannot learn directly from another remote.
       Importing a raw capture made with an external IR receiver is supported.</p>
+    <p>On a phone with no IR blaster, the 3.5mm headset port is the one workable fallback.
+      The app synthesises the code as a 19 kHz tone; two IR LEDs wired back-to-back each
+      conduct on the half-cycle the other blocks, so together they pulse at 38 kHz — the
+      carrier a TV receiver expects. A phone's audio output cannot produce 38 kHz by itself,
+      so the doubling happens in the hardware, which is why one LED does not work. The app
+      can measure that a plug is present and where the audio system routed the sound; it
+      cannot prove light left an LED, because nothing here receives IR.</p>
 
     <h2>Privacy and terms</h2>
     <p><a href="privacy.html">Privacy policy</a> · <a href="terms.html">Terms of use</a> ·
