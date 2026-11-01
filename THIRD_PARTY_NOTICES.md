@@ -6,7 +6,7 @@ it derives from.
 
 | Project | License | Use in IR Voider |
 | --- | --- | --- |
-| [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) | CC0-1.0 | IR code data used to generate `assets/remotes.json` |
+| [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) | CC0-1.0 | IR code data used to generate `assets/remotes.json` and the `assets/db/` shards, including the `_Converted_/` community dumps (CSV, Pronto and IR_Plus captures) that supply most of the extra brands |
 | [Flipper Zero firmware](https://github.com/flipperdevices/flipperzero-firmware) | GPL-3.0 | IR encoder logic ported to Python and Java |
 | [IRremoteESP8266](https://github.com/crankyoldgit/IRremoteESP8266) | LGPL-2.1 | Protocol timing references and encoder behavior |
 | Android SDK / platform APIs | Apache-2.0 | Build and runtime platform, not redistributed |
@@ -15,6 +15,10 @@ it derives from.
 
 - Flipper-IRDB data is dedicated to the public domain under CC0 1.0. Attribution
   is not required, but is given here.
+- The `_Converted_/` subtree is third-party captures converted to Flipper's `.ir`
+  format by the Flipper community (CSV, Pronto and IR_Plus dumps). Nobody has
+  bench-tested those codes against a real device, so IR Voider tags every remote
+  that came from them and shows **untested source** while scanning.
 - The Flipper Zero firmware is GPL-3.0. Portions of the protocol encoders in
   `tools/build_db.py` and the Java IR pattern generation are derived from that
   implementation.

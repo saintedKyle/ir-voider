@@ -137,6 +137,7 @@ public class MainActivity extends Activity {
         String category;
         String brand;
         String name;
+        boolean unverified;
         final Map<String, Code> buttons = new LinkedHashMap<>();
     }
 
@@ -147,7 +148,10 @@ public class MainActivity extends Activity {
 
     static class Category {
         String name;
+        final List<String> files = new ArrayList<>();
         final List<Brand> brands = new ArrayList<>();
+        boolean loaded;
+        int baseCount;
         int remoteCount;
     }
 
@@ -167,6 +171,12 @@ public class MainActivity extends Activity {
     private final Map<String, Button> buttons = new LinkedHashMap<>();
     private Category category;
     private List<Brand> brands = new ArrayList<>();
+    private boolean loadingCodes;
+    private int pendingCategory = -1;
+    private Runnable pendingAfter;
+    private int dbRemotes;
+    private int dbCodes;
+    private int dbUnverified;
 
     private ScrollView scrollView;
     private LinearLayout controlsCard;
@@ -175,7 +185,7 @@ public class MainActivity extends Activity {
     private int pageCount;
     private Spinner brandSpinner;
     private Spinner remoteSpinner;
-    private final Button[] speedButtons = new Button[4];
+    private final Button[] speedButtons = new Button[5];
     private CheckBox allBrands;
     private TextView status;
     private TextView irChip;
@@ -281,11 +291,42 @@ public class MainActivity extends Activity {
 
     private void loadDatabase() throws Exception {
         JSONObject root = new JSONObject(readAsset("remotes.json"));
+        if (root.optInt("format", 1) != 2) {
+            throw new IllegalStateException("Database asset is outdated; reinstall");
+        }
+        JSONObject totals = root.optJSONObject("totals");
+        if (totals != null) {
+            dbRemotes = totals.optInt("remotes");
+            dbCodes = totals.optInt("codes");
+            dbUnverified = totals.optInt("unverified");
+        }
         JSONArray cats = root.getJSONArray("categories");
         for (int i = 0; i < cats.length(); i++) {
             JSONObject co = cats.getJSONObject(i);
             Category cat = new Category();
             cat.name = co.getString("name");
+            cat.baseCount = co.optInt("remotes");
+            cat.remoteCount = cat.baseCount;
+            JSONArray files = co.optJSONArray("files");
+            if (files != null) {
+                for (int f = 0; f < files.length(); f++) cat.files.add(files.getString(f));
+            }
+            if (!cat.files.isEmpty()) categories.add(cat);
+        }
+        if (categories.isEmpty()) throw new IllegalStateException("No categories in database");
+
+        int index = findCategory(DeviceStore.selectedCategory(this));
+        category = categories.get(index < 0 ? 0 : index);
+        brands = category.brands;
+        hydrate(category);
+        appendCustomRemotes();
+    }
+
+    /** Read one category's shard files. Only ever called off the main thread. */
+    private void hydrate(Category cat) throws Exception {
+        if (cat.loaded) return;
+        for (String file : cat.files) {
+            JSONObject co = new JSONObject(readAsset(file));
             JSONArray brandArray = co.getJSONArray("brands");
             for (int j = 0; j < brandArray.length(); j++) {
                 JSONObject bo = brandArray.getJSONObject(j);
@@ -298,6 +339,7 @@ public class MainActivity extends Activity {
                     remote.category = cat.name;
                     remote.brand = brand.name;
                     remote.name = ro.getString("name");
+                    remote.unverified = ro.optInt("src", 0) != 0;
                     JSONObject btns = ro.getJSONObject("buttons");
                     for (int b = 0; b < BUTTON_ORDER.length; b++) {
                         String key = BUTTON_ORDER[b];
@@ -312,18 +354,69 @@ public class MainActivity extends Activity {
                     }
                     if (!remote.buttons.containsKey("power")) continue;
                     brand.remotes.add(remote);
-                    cat.remoteCount++;
                 }
                 if (!brand.remotes.isEmpty()) cat.brands.add(brand);
             }
-            if (!cat.brands.isEmpty()) categories.add(cat);
         }
-        if (categories.isEmpty()) throw new IllegalStateException("No categories in database");
-        appendCustomRemotes();
+        cat.loaded = true;
+    }
 
-        int index = findCategory(DeviceStore.selectedCategory(this));
-        category = categories.get(index < 0 ? 0 : index);
-        brands = category.brands;
+    /**
+     * Point the UI at a category, loading its codes first when needed. `after`
+     * always runs with `brands` filled for the shown category.
+     */
+    private void useCategory(int index, Runnable after) {
+        if (index < 0 || index >= categories.size()) {
+            if (after != null) after.run();
+            return;
+        }
+        final Category next = categories.get(index);
+        if (next.loaded) {
+            applyCategory(next);
+            if (after != null) after.run();
+            return;
+        }
+        if (loadingCodes) {
+            // Remember the newest request; a tap during a load must not be dropped.
+            pendingCategory = index;
+            pendingAfter = after;
+            status.setText("Loading " + next.name + " codes\u2026");
+            return;
+        }
+        loadingCodes = true;
+        status.setText("Loading " + next.name + " codes\u2026");
+        new Thread(() -> {
+            String error = null;
+            try {
+                hydrate(next);
+            } catch (Exception e) {
+                error = e.toString();
+            }
+            final String err = error;
+            runOnUiThread(() -> {
+                loadingCodes = false;
+                if (err != null) {
+                    status.setText("Could not load codes:\n" + err);
+                    return;
+                }
+                applyCategory(next);
+                if (after != null) after.run();
+                int p = pendingCategory;
+                Runnable pa = pendingAfter;
+                pendingCategory = -1;
+                pendingAfter = null;
+                if (p >= 0 && p != index) useCategory(p, pa);
+            });
+        }).start();
+    }
+
+    private void applyCategory(Category c) {
+        category = c;
+        brands = c.brands;
+        adjusting = true;
+        rebuildBrandSpinner();
+        adjusting = false;
+        updateCategoryLabel();
     }
 
     private int findCategory(String name) {
@@ -524,7 +617,7 @@ public class MainActivity extends Activity {
         TextView speedLabel = text("Speed", 14, MUTED, false);
         speedLabel.setWidth(dp(58));
         speedRow.addView(speedLabel);
-        String[] speedLabels = {"1 s", "1.5 s", "2 s", "3 s"};
+        String[] speedLabels = {"0.5 s", "1 s", "1.5 s", "2 s", "3 s"};
         for (int i = 0; i < speedButtons.length; i++) {
             final int index = i;
             Button b = styledButton(speedLabels[i], BTN, 13);
@@ -535,8 +628,8 @@ public class MainActivity extends Activity {
             speedButtons[i] = b;
         }
         scanCard.addView(speedRow);
-        setScanSpeed(scanDelayMs <= 1100 ? 0 : scanDelayMs <= 1600 ? 1
-                : scanDelayMs <= 2200 ? 2 : 3, false);
+        setScanSpeed(scanDelayMs <= 600 ? 0 : scanDelayMs <= 1100 ? 1
+                : scanDelayMs <= 1600 ? 2 : scanDelayMs <= 2200 ? 3 : 4, false);
 
         findButton = highlightButton("Find code", 16);
         findButton.setOnClickListener(v -> startAutoFind());
@@ -546,8 +639,10 @@ public class MainActivity extends Activity {
         addCard(root, scanCard);
 
         TextView credit = text(
-                "Codes: Flipper-IRDB (CC0). IR only \u2014 no network calls unless "
-                        + "you turn on update checks.",
+                "Codes: Flipper-IRDB (CC0), including its converted public remote "
+                        + "dumps. Codes marked \u201cuntested source\u201d were never "
+                        + "bench-checked here. IR only \u2014 no network calls unless you "
+                        + "turn on update checks.",
                 11, MUTED, false);
         credit.setPadding(dp(4), dp(4), 0, 0);
         root.addView(credit);
@@ -660,7 +755,8 @@ public class MainActivity extends Activity {
     }
 
     private void setScanSpeed(int index, boolean persist) {
-        scanDelayMs = index == 0 ? 1000 : index == 1 ? 1500 : index == 2 ? 2000 : 3000;
+        scanDelayMs = index == 0 ? 500 : index == 1 ? 1000 : index == 2 ? 1500
+                : index == 3 ? 2000 : 3000;
         if (persist) DeviceStore.setScanDelayMs(this, scanDelayMs);
         for (int i = 0; i < speedButtons.length; i++) {
             Button b = speedButtons[i];
@@ -716,7 +812,7 @@ public class MainActivity extends Activity {
 
     private void rebuildBrandSpinner() {
         List<String> names = new ArrayList<>();
-        for (Brand b : brands) names.add(b.name);
+        for (Brand b : brands) names.add(prettyBrand(b.name));
         ArrayAdapter<String> ba = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, names);
         ba.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -750,16 +846,15 @@ public class MainActivity extends Activity {
     }
 
     private void applyRemote(Remote r, boolean saved) {
-        adjusting = true;
         if (!r.category.equals(category.name)) {
-            int ci = findCategory(r.category);
-            if (ci >= 0) {
-                category = categories.get(ci);
-                brands = category.brands;
-                rebuildBrandSpinner();
-                updateCategoryLabel();
-            }
+            useCategory(findCategory(r.category), () -> finishApplyRemote(r, saved));
+            return;
         }
+        finishApplyRemote(r, saved);
+    }
+
+    private void finishApplyRemote(Remote r, boolean saved) {
+        adjusting = true;
         int bi = brandIndex(r.brand);
         if (bi >= 0) {
             brandSpinner.setSelection(bi);
@@ -768,7 +863,7 @@ public class MainActivity extends Activity {
         current = r;
         renderControls();
         updateDeviceLabels();
-        status.setText(saved ? "Saved. Press POWER to test." : "Ready.");
+        status.setText(saved ? "Saved. Press POWER to test." : codeOrigin(r));
         handler.postDelayed(() -> adjusting = false, 400);
     }
 
@@ -807,9 +902,9 @@ public class MainActivity extends Activity {
         if (d != null) {
             deviceNameText.setText(d.name);
             modelText.setText(d.type + " \u2022 " + current.category + " \u2022 "
-                    + current.brand + " \u2014 " + pretty(current.name));
+                    + prettyBrand(current.brand) + " \u2014 " + pretty(current.name));
         } else {
-            deviceNameText.setText(current.brand + " \u2014 " + pretty(current.name));
+            deviceNameText.setText(prettyBrand(current.brand) + " \u2014 " + pretty(current.name));
             modelText.setText(current.category + " \u2022 Tap \u2699 to name this device");
         }
     }
@@ -850,10 +945,10 @@ public class MainActivity extends Activity {
             int shown = 0;
             for (int i = 0; i < brands.size(); i++) {
                 Brand b = brands.get(i);
-                if (!q.isEmpty() && !b.name.toLowerCase().contains(q)) continue;
+                if (!q.isEmpty() && !prettyBrand(b.name).toLowerCase().contains(q)) continue;
                 shown++;
                 boolean active = current != null && b.name.equals(current.brand);
-                TextView row = text(b.name, 15, active ? ACCENT : TEXT, active);
+                TextView row = text(prettyBrand(b.name), 15, active ? ACCENT : TEXT, active);
                 row.setPadding(dp(10), dp(13), dp(10), dp(13));
                 row.setBackground(active ? Surface.raised(this, 12, ACTIVE,
                         Surface.blend(CARD, ACCENT, 0.5f), palette.gloss(0.16f)) : null);
@@ -928,11 +1023,13 @@ public class MainActivity extends Activity {
         String catName = DeviceStore.selectedCategory(this);
         int ci = findCategory(catName);
         if (ci >= 0 && !categories.get(ci).name.equals(category.name)) {
-            category = categories.get(ci);
-            brands = category.brands;
-            rebuildBrandSpinner();
-            updateCategoryLabel();
+            useCategory(ci, () -> restoreSelectedRemote(saved));
+            return;
         }
+        restoreSelectedRemote(saved);
+    }
+
+    private void restoreSelectedRemote(boolean saved) {
         String brand = DeviceStore.selectedBrand(this);
         String name = DeviceStore.selectedRemote(this);
         if (brand == null || name == null) {
@@ -951,14 +1048,9 @@ public class MainActivity extends Activity {
         if (categories.isEmpty()) return;
         String catName = DeviceStore.selectedCategory(this);
         int ci = findCategory(catName);
-        if (ci >= 0) {
-            Category c = categories.get(ci);
-            if (!c.name.equals(category.name)) {
-                category = c;
-                brands = category.brands;
-                rebuildBrandSpinner();
-                updateCategoryLabel();
-            }
+        if (ci >= 0 && !categories.get(ci).name.equals(category.name)) {
+            useCategory(ci, this::syncFromPrefs);
+            return;
         }
         String brand = DeviceStore.selectedBrand(this);
         String name = DeviceStore.selectedRemote(this);
@@ -1249,7 +1341,7 @@ public class MainActivity extends Activity {
 
     private void recordScanHistory(Candidate c) {
         if (scanHistoryView == null) return;
-        String line = nextCandidate + ". " + c.remote.brand + " — "
+        String line = nextCandidate + ". " + prettyBrand(c.remote.brand) + " — "
                 + pretty(c.remote.name) + c.label;
         scanHistory.addFirst(line);
         while (scanHistory.size() > 5) scanHistory.removeLast();
@@ -1413,7 +1505,8 @@ public class MainActivity extends Activity {
         }
         progress.setProgress(nextCandidate);
         scanCount.setText("Scanning " + nextCandidate + " / " + candidates.size());
-        scanName.setText(c.remote.brand + " \u2014 " + pretty(c.remote.name));
+        scanName.setText(prettyBrand(c.remote.brand) + " \u2014 " + pretty(c.remote.name)
+                + (c.remote.unverified ? "  \u00b7 untested source" : ""));
         recordScanHistory(c);
         handler.postDelayed(this::tickAutoFind, scanDelayMs);
     }
@@ -1432,7 +1525,8 @@ public class MainActivity extends Activity {
                 && DeviceStore.acPowerRepeat(this));
         progress.setProgress(nextCandidate);
         scanCount.setText("Replaying " + nextCandidate + " / " + candidates.size());
-        scanName.setText(c.remote.brand + " \u2014 " + pretty(c.remote.name));
+        scanName.setText(prettyBrand(c.remote.brand) + " \u2014 " + pretty(c.remote.name)
+                + (c.remote.unverified ? "  \u00b7 untested source" : ""));
         status.setText("Replaying the previous code.");
         handler.postDelayed(this::tickAutoFind, scanDelayMs);
     }
@@ -2202,18 +2296,14 @@ public class MainActivity extends Activity {
 
     private void switchCategory(int index) {
         if (index < 0 || index >= categories.size()) return;
-        category = categories.get(index);
-        brands = category.brands;
         current = null;
-        adjusting = true;
-        rebuildBrandSpinner();
-        adjusting = false;
-        updateCategoryLabel();
-        if (!brands.isEmpty()) {
-            populateRemotes(0);
-            if (current != null) saveCurrent(current);
-        }
-        updateDeviceLabels();
+        useCategory(index, () -> {
+            if (!brands.isEmpty()) {
+                populateRemotes(0);
+                if (current != null) saveCurrent(current);
+            }
+            updateDeviceLabels();
+        });
     }
 
     private void appendCustomRemotes() {
@@ -2225,6 +2315,13 @@ public class MainActivity extends Activity {
             int ci = findCategory(catName);
             if (ci < 0) continue;
             Category cat = categories.get(ci);
+            if (!cat.loaded) {
+                try {
+                    hydrate(cat);
+                } catch (Exception ignored) {
+                    continue;
+                }
+            }
             Brand learned = null;
             for (Brand b : cat.brands) {
                 if (b.name.equals("Learned")) learned = b;
@@ -2234,6 +2331,10 @@ public class MainActivity extends Activity {
                 boolean exists = false;
                 for (Remote r : learned.remotes) if (r.name.equals(name)) exists = true;
                 if (exists) continue;
+            } else {
+                learned = new Brand();
+                learned.name = "Learned";
+                cat.brands.add(0, learned);
             }
             Remote remote = new Remote();
             remote.category = cat.name;
@@ -2255,13 +2356,19 @@ public class MainActivity extends Activity {
                 }
             }
             if (!remote.buttons.containsKey("power")) continue;
-            if (learned == null) {
-                learned = new Brand();
-                learned.name = "Learned";
-                cat.brands.add(learned);
-            }
             learned.remotes.add(remote);
-            cat.remoteCount++;
+        }
+        refreshCounts();
+    }
+
+    /** Shown count is always the published shard count plus anything learned. */
+    private void refreshCounts() {
+        for (Category c : categories) {
+            int learned = 0;
+            for (Brand b : c.brands) {
+                if (b.name.equals("Learned")) learned += b.remotes.size();
+            }
+            c.remoteCount = c.baseCount + learned;
         }
     }
 
@@ -2270,10 +2377,8 @@ public class MainActivity extends Activity {
             for (int i = c.brands.size() - 1; i >= 0; i--) {
                 if (c.brands.get(i).name.equals("Learned")) c.brands.remove(i);
             }
-            int n = 0;
-            for (Brand b : c.brands) n += b.remotes.size();
-            c.remoteCount = n;
         }
+        refreshCounts();
     }
 
     private void reloadCustomRemotes() {
@@ -2296,31 +2401,30 @@ public class MainActivity extends Activity {
         String catName = data.getStringExtra("category");
         String name = data.getStringExtra("name");
         int ci = findCategory(catName == null ? "" : catName);
+        Runnable showLearned = () -> {
+            int bi = brandIndex("Learned");
+            if (bi >= 0) {
+                Brand learned = brands.get(bi);
+                Remote found = null;
+                for (Remote r : learned.remotes) {
+                    if (r.name.equals(name)) found = r;
+                }
+                adjusting = true;
+                brandSpinner.setSelection(bi);
+                if (found != null) setRemoteAdapter(learned, found);
+                adjusting = false;
+                if (found != null) {
+                    selectRemote(found);
+                    scrollView.post(() -> scrollView.fullScroll(View.FOCUS_UP));
+                }
+            }
+            status.setText("Imported “" + name + "”.");
+        };
         if (ci >= 0 && !categories.get(ci).name.equals(category.name)) {
-            category = categories.get(ci);
-            brands = category.brands;
-            adjusting = true;
-            rebuildBrandSpinner();
-            adjusting = false;
-            updateCategoryLabel();
+            useCategory(ci, showLearned);
+        } else {
+            showLearned.run();
         }
-        int bi = brandIndex("Learned");
-        if (bi >= 0) {
-            Brand learned = brands.get(bi);
-            Remote found = null;
-            for (Remote r : learned.remotes) {
-                if (r.name.equals(name)) found = r;
-            }
-            adjusting = true;
-            brandSpinner.setSelection(bi);
-            if (found != null) setRemoteAdapter(learned, found);
-            adjusting = false;
-            if (found != null) {
-                selectRemote(found);
-                scrollView.post(() -> scrollView.fullScroll(View.FOCUS_UP));
-            }
-        }
-        status.setText("Imported “" + name + "”.");
     }
 
     private String jackVerdict;
@@ -2538,7 +2642,7 @@ public class MainActivity extends Activity {
         int remotes = 0;
         for (Category c : categories) remotes += c.remoteCount;
         String currentText = current == null ? "none"
-                : current.category + " • " + current.brand + " — "
+                : current.category + " • " + prettyBrand(current.brand) + " — "
                 + pretty(current.name);
         String sending = source == EMITTER_JACK ? "the jack blaster"
                 : source == EMITTER_BUILT ? "the built-in emitter"
@@ -2547,7 +2651,10 @@ public class MainActivity extends Activity {
                 + "Sending by: " + sending + "\n"
                 + "Phone: " + Build.MANUFACTURER + " " + Build.MODEL + "\n"
                 + "Android: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")\n\n"
-                + "Database: " + categories.size() + " categories, " + remotes + " remotes\n"
+                + "Database: " + categories.size() + " categories, " + remotes
+                + " remotes, " + dbCodes + " codes\n"
+                + "Untested-source remotes: " + dbUnverified
+                + " (labelled while scanning)\n"
                 + "App: IR Voider " + Updater.currentVersion()
                 + " (build " + BuildConfig.VERSION_CODE + ")\n"
                 + "Update check: " + (Updater.enabled(this) ? "on" : "off")
@@ -2629,6 +2736,24 @@ public class MainActivity extends Activity {
 
     private String pretty(String name) {
         return name.replace('_', ' ');
+    }
+
+    /** Brand names arrive as directory slugs — `General_Electric`, `Sony 2`. */
+    static String prettyBrand(String name) {
+        if ("Learned".equals(name)) return name;
+        return name.replace('_', ' ').replaceAll(" \\d+$", "").trim();
+    }
+
+    /**
+     * Where a code came from. The converted collection is publicly shared but
+     * never bench-tested, so the UI says so instead of implying it works.
+     */
+    private String codeOrigin(Remote r) {
+        if (r == null) return "Ready.";
+        if ("Learned".equals(r.brand)) return "Ready. From your own capture.";
+        return r.unverified
+                ? "Ready. Community capture \u2014 untested by this app."
+                : "Ready.";
     }
 
     private abstract static class SimpleItemListener

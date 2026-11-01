@@ -329,6 +329,24 @@ for _d in range(10):
     BUTTON_ALIASES["digit_%d" % _d] = "num_%d" % _d
     BUTTON_ALIASES["number_%d" % _d] = "num_%d" % _d
 
+# Device-prefixed and abbreviated power labels carried by the converted
+# third-party dumps. Without these a remote is dropped for having no power key.
+for _p in ("tv", "vcr", "cd", "dvd", "amp", "av", "main", "zone2"):
+    BUTTON_ALIASES["%s_power" % _p] = "power"
+    BUTTON_ALIASES["%s-power" % _p] = "power"
+    BUTTON_ALIASES["%s_on" % _p] = "power"
+    BUTTON_ALIASES["%s_off" % _p] = "power_off"
+BUTTON_ALIASES.update({
+    "pwr": "power", "pwr_on": "power", "power_on": "power",
+    "poweron": "power", "poweroff": "power_off", "pwr_off": "power_off",
+    "power_on_off": "power", "power_onoff": "power", "on_off": "power",
+    "onoff": "power", "off_on": "power", "turnon": "power", "turnoff": "power_off",
+    "power-on": "power", "power-off": "power_off", "set_top_power": "power",
+    "power_toggle_on_off": "power", "main_power": "power", "standby": "power",
+    "power_on_assert": "power", "power_off_assert": "power_off",
+    "toggle_power": "power", "power_button": "power", "system_standby": "power",
+})
+
 KEEP = ["power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
         "input", "up", "down", "left", "right", "ok", "back", "home", "menu",
         "exit", "info", "guide", "play_pause", "stop", "rewind", "forward",
@@ -343,6 +361,49 @@ KEEP = ["power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
 def normalize(name):
     key = re.sub(r"[^a-z0-9_+\-]", "", name.strip().lower().replace(" ", "_"))
     return BUTTON_ALIASES.get(key)
+
+
+MIN_FREQ = 30000      # Android's ConsumerIrManager rejects carriers below this
+MAX_FREQ = 60000
+# Air-conditioner frames are whole state packets: Daikin and Mitsubishi power codes
+# run to ~586 events. A HAL that refuses a long pattern raises, and the app reports
+# the refusal, so the cost of shipping one is one honest error message. The cost of
+# dropping one is a brand nobody can reach.
+MAX_EVENTS = 1024
+FRAME_GAP = 20000     # a trailing off-period this long ends a repeated frame
+
+
+def _similar(a, b):
+    if len(a) != len(b):
+        return False
+    same = sum(1 for x, y in zip(a, b) if abs(x - y) <= max(200, 0.15 * max(x, y)))
+    return same >= len(a) * 0.9
+
+
+def _trim_repeats(pat):
+    """Cut trailing copies of the first frame.
+
+    Only trims when the rest of the capture is a near-duplicate: aircon
+    commands are sent as two different frames and must stay whole.
+    """
+    for i in range(1, len(pat), 2):
+        if pat[i] >= FRAME_GAP and i + 1 < len(pat):
+            head, tail = pat[:i + 1], pat[i + 1:]
+            if _similar(head, tail[:len(head)]):
+                return head
+            return pat
+    return pat
+
+
+def sanitize(freq, pat):
+    """Keep only patterns a phone can physically emit."""
+    if not (MIN_FREQ <= freq <= MAX_FREQ):
+        return None
+    if len(pat) > MAX_EVENTS:
+        pat = _trim_repeats(pat)
+    if len(pat) > MAX_EVENTS or len(pat) % 2 == 1:
+        return None
+    return freq, pat
 
 
 def to_pattern(entry):
@@ -381,62 +442,300 @@ def to_pattern(entry):
     return freq, pat
 
 
-def main():
-    categories = []
-    grand_total = 0
+# --------------------------------------------------- converted third-party dumps
+#
+# Flipper-IRDB also ships an `_Converted_` tree generated from the public
+# probonopd/irdb CSV collection. Its README states those files are untested and
+# may carry the wrong protocol, so every remote taken from that tree is tagged
+# src=1 and the app labels it "unverified source" instead of presenting it as a
+# known-good code.
+
+CONVERTED = os.path.join(ROOT, "_Converted_")
+CONVERTED_SOURCES = ("CSV", "Pronto", "IR_Plus")
+
+# Ordered device-type rules, first match wins. Needles are compared as whole
+# words against the lower-cased, non-alphanumeric-stripped folder/file names.
+CATEGORY_RULES = [
+    ("projector|video projector|dlp|laser tv projector", "Projector"),
+    ("air conditioner|aircondition|aircon|hvac|mini split|heat pump|"
+     "split system|air handler|climatizador", "Air Conditioner"),
+    ("fan|fans|ceiling fan", "Fan"),
+    ("bluray|blue ray|sacd", "Blu-ray Player"),
+    ("dvd|hd dvd|dvd recorder|dvd changer", "DVD Player"),
+    ("vcr|videocassette|cassette", "VCR"),
+    ("laser disc|laserdisc", "Laserdisc"),
+    ("mini disc|minidisc", "MiniDisc"),
+    ("cd|cd r|cd player|cd changer|cd jukebox|jukebox|cdrom|cd rom", "CD Player"),
+    ("soundbar|sound base|soundbase", "Soundbar"),
+    ("speaker|speakers|subwoofer|woofer", "Speaker"),
+    ("receiver|amplifier|pre amp|preamp|surround|dsp|processor|avr|zone|tuner|"
+     "power amp|integrated amp", "Audio / Receiver"),
+    ("satellite|satelite|sat|dss|stb|set top|settop|ird|dvb|dtv|cable|hddvr|"
+     "dvr|pvr|recorder|tivo", "Cable / Sat Box"),
+    ("light|lighting|lights|lamp|lamps|dmx|dimmer|led strip", "LED Light"),
+    ("camera|cameras|ptz|cctv|camcorder", "Camera"),
+    ("monitor|monitors", "Monitor"),
+    ("whiteboard|interactive board|smart board", "Whiteboard"),
+    ("touchscreen", "Touchscreen"),
+    ("vacuum|robot cleaner|roomba|dust collector", "Vacuum"),
+    ("purifier", "Air Purifier"),
+    ("heater|fireplace|fire place", "Heater"),
+    ("humidifier", "Humidifier"),
+    ("head unit|car audio|car stereo|car cd", "Head Unit"),
+    ("switcher|matrix|switch|hub|kvm|splitter|converter|selector", "Converter"),
+    ("console|game|xbox|playstation|nintendo", "Console"),
+    ("toy|drone", "Toy"),
+    ("clock|digital sign", "Clock"),
+    ("tv|tvs|television|plasma|lcd|oled|hdtv|btv", "TV"),
+    ("radio|stereo|mini system|music center|mp3|ipod|portable|media player|"
+     "lifestyle|karaoke|audio", "Multimedia"),
+]
+
+
+def _norm(text):
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+
+def classify(*hints):
+    """Map device-type and model-name fragments onto an app category name."""
+    norm = " %s " % _norm(" ".join(h for h in hints if h))
+    for needles, display in CATEGORY_RULES:
+        for needle in needles.split("|"):
+            if " %s " % needle in norm:
+                return display
+    return "Misc"
+
+
+def pick_display(variants):
+    """Prefer a mixed-case spelling of a brand over an ALL-CAPS duplicate."""
+    mixed = sorted(v for v in variants if v != v.upper())
+    return (mixed or sorted(variants))[0]
+
+
+def classify_buttons(keys):
+    """Fallback when a converted file carries no device-type folder.
+
+    The button vocabulary is the only evidence left: an aircon remote has temp
+    keys, a TV has channel keys, an amplifier has volume but no channels.
+    """
+    has = set(keys)
+    if has & {"temp_up", "temp_down", "swing"}:
+        return "Air Conditioner"
+    if has & {"ch_up", "ch_down"}:
+        return "TV"
+    if has & {"vol_up", "vol_down", "mute"}:
+        return "Audio / Receiver"
+    if has & {"play_pause", "stop", "forward", "rewind"}:
+        return "Multimedia"
+    return "Misc"
+
+
+def brand_key(name):
+    # Underscore and spacing spellings are one brand: "Hampton_Bay" joins "Hampton Bay".
+    return re.sub(r"[\s_]+", " ", name.strip().strip("()")).lower()
+
+
+def buttons_of(path, skipped):
+    buttons = {}
+    for e in parse_ir(path):
+        key = normalize(e.get("name", ""))
+        if not key or key in buttons:
+            continue
+        res = to_pattern(e)
+        if not res:
+            skipped[e.get("protocol", "raw")] += 1
+            continue
+        res = sanitize(*res)
+        if not res:
+            skipped["unsendable"] += 1
+            continue
+        buttons[key] = res
+    if "power" not in buttons:
+        return None
+    return {k: [buttons[k][0], buttons[k][1]] for k in KEEP if k in buttons}
+
+
+def converted_items():
+    """Yield (device-type folder, brand dir, model name, path) from the tree."""
+    for dirpath, dirnames, filenames in os.walk(CONVERTED):
+        irs = sorted(f for f in filenames if f.endswith(".ir"))
+        if not irs:
+            continue
+        rel = os.path.relpath(dirpath, CONVERTED).split(os.sep)
+        top = rel[0] if rel != ["."] else ""
+        if top not in CONVERTED_SOURCES or len(rel) < 3:
+            continue  # skips the multi-device Power_off.ir and oddball folders
+        brand = rel[2]
+        dtype = rel[3] if top == "CSV" and len(rel) > 3 else None
+        for fn in irs:
+            yield dtype, brand, fn[:-3], os.path.join(dirpath, fn)
+
+
+def make_tree():
+    """Fold both corpora into {category: {brand_key: entry}}."""
     skipped = Counter()
+    tree = {}
+    stats = Counter()
+
+    def place(cat_name, brand_dir, remote):
+        entry = tree.setdefault(cat_name, {})
+        key = brand_key(brand_dir)
+        node = entry.get(key)
+        if node is None:
+            node = {"variants": Counter(), "remotes": [], "seen": set()}
+            entry[key] = node
+        node["variants"][brand_dir] += 1
+        freq, pattern = remote["buttons"]["power"]
+        sig = (remote["name"].lower(), freq, tuple(pattern))
+        if sig in node["seen"]:
+            stats["duplicate"] += 1
+            return False
+        node["seen"].add(sig)
+        node["remotes"].append(remote)
+        return True
+
     for folder, display in OUT_CATEGORIES.items():
         cpath = os.path.join(ROOT, folder)
         if not os.path.isdir(cpath):
             continue
-        brands = OrderedDict()
-        count = 0
         for brand in sorted(os.listdir(cpath)):
             bpath = os.path.join(cpath, brand)
             if not os.path.isdir(bpath):
                 continue
-            remotes = []
             for fn in sorted(os.listdir(bpath)):
                 if not fn.endswith(".ir"):
                     continue
-                path = os.path.join(bpath, fn)
-                buttons = {}
-                for e in parse_ir(path):
-                    key = normalize(e.get("name", ""))
-                    if not key or key in buttons:
-                        continue
-                    res = to_pattern(e)
-                    if not res:
-                        skipped[e.get("protocol", "raw")] += 1
-                        continue
-                    buttons[key] = [res[0], res[1]]
-                if "power" not in buttons:
+                btns = buttons_of(os.path.join(bpath, fn), skipped)
+                if btns is None:
+                    stats["no_power_main"] += 1
                     continue
-                ordered = {k: buttons[k] for k in KEEP if k in buttons}
-                remote = {"name": fn[:-3], "buttons": ordered}
-                remotes.append(remote)
-                count += 1
-            if remotes:
-                brands[brand] = remotes
-        if not brands:
-            continue
-        categories.append({
-            "name": display,
-            "brands": [{"name": b, "remotes": rs} for b, rs in brands.items()],
-        })
-        grand_total += count
-        print(f"{display:<22} brands={len(brands):<4} remotes={count}")
+                if place(display, brand, {"name": fn[:-3], "buttons": btns}):
+                    stats["main"] += 1
 
+    for dtype, brand, name, path in converted_items():
+        btns = buttons_of(path, skipped)
+        if btns is None:
+            stats["no_power_converted"] += 1
+            continue
+        cat_name = classify(dtype or "", name)
+        if cat_name == "Misc" and dtype is None:
+            cat_name = classify_buttons(btns)
+            if cat_name != "Misc":
+                stats["filed_by_buttons"] += 1
+        if place(cat_name, brand, {"name": name, "buttons": btns, "src": 1}):
+            stats["converted"] += 1
+
+    return tree, skipped, stats
+
+
+SHARD_LIMIT = 3_000_000  # keep one asset read small enough to parse on a phone
+
+
+def slug(name):
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+def write_db(categories, totals):
+    """Write per-category shard files plus a small index the app reads at boot."""
+    base = os.path.dirname(OUT)
+    dbdir = os.path.join(base, "db")
+    if os.path.isdir(dbdir):
+        for fn in os.listdir(dbdir):
+            os.remove(os.path.join(dbdir, fn))
+    else:
+        os.makedirs(dbdir, exist_ok=True)
+
+    index = []
+    for cat in categories:
+        name = cat["name"]
+        s = slug(name)
+        files = []
+        bucket = []
+        size = 0
+
+        def flush(suffix):
+            fn = "db/%s%s.json" % (s, suffix)
+            payload = {"name": name, "brands": bucket[:]}
+            blob = json.dumps(payload, separators=(",", ":"))
+            with open(os.path.join(base, fn), "w", encoding="utf-8") as fh:
+                fh.write(blob)
+            files.append(fn)
+
+        for brand in cat["brands"]:
+            blob = json.dumps(brand, separators=(",", ":"))
+            if bucket and size + len(blob) > SHARD_LIMIT:
+                flush("" if not files else "-%d" % (len(files) + 1))
+                bucket = []
+                size = 0
+            bucket.append(brand)
+            size += len(blob)
+        if bucket:
+            flush("" if not files else "-%d" % (len(files) + 1))
+        entry = {"name": name, "files": files, "brands": len(cat["brands"]),
+                 "remotes": cat["remotes"], "codes": cat["codes"],
+                 "unverified": cat["unverified"]}
+        index.append(entry)
     data = {
         "source": "Flipper-IRDB (https://github.com/Lucaslhm/Flipper-IRDB)",
-        "categories": categories,
+        "format": 2,
+        "totals": dict(totals),
+        "categories": index,
     }
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(data, f, separators=(",", ":"))
-    size = os.path.getsize(OUT)
-    print(f"categories={len(categories)} remotes={grand_total} bytes={size/1e6:.2f}MB")
-    print("skipped protocols:", skipped.most_common(12))
+    shards = sum(len(e["files"]) for e in index)
+    return shards, os.path.getsize(OUT)
+
+
+def serialize(tree):
+    known = list(OrderedDict((d, 1) for _, d in OUT_CATEGORIES.items()))
+    names = known + sorted(c for c in tree if c not in known)
+    categories = []
+    totals = Counter()
+    for cat_name in names:
+        entry = tree.get(cat_name)
+        if not entry:
+            continue
+        brands = []
+        remotes_total = codes_total = unver_total = 0
+        for key in sorted(entry):
+            node = entry[key]
+            remotes = sorted(node["remotes"], key=lambda r: r["name"].lower())
+            if not remotes:
+                continue
+            labelled = Counter()
+            for r in remotes:
+                labelled[r["name"]] += 1
+                if labelled[r["name"]] > 1:
+                    # the model spinner must never show two identical names
+                    r["name"] = "%s (%d)" % (r["name"], labelled[r["name"]])
+            brands.append({"name": pick_display(node["variants"]), "remotes": remotes})
+            remotes_total += len(remotes)
+            codes_total += sum(len(r["buttons"]) for r in remotes)
+            unver_total += sum(1 for r in remotes if r.get("src"))
+        if not brands:
+            continue
+        totals["remotes"] += remotes_total
+        totals["codes"] += codes_total
+        totals["unverified"] += unver_total
+        totals["brands"] += len(brands)
+        categories.append({"name": cat_name, "brands": brands,
+                           "remotes": remotes_total, "codes": codes_total,
+                           "unverified": unver_total})
+        print(f"{cat_name:<20} brands={len(brands):<5} remotes={remotes_total:<6} "
+              f"codes={codes_total}")
+    return categories, totals
+
+
+def main():
+    tree, skipped, stats = make_tree()
+    categories, totals = serialize(tree)
+    shard_count, index_bytes = write_db(categories, totals)
+    print(f"categories={len(categories)} shards={shard_count} "
+          f"remotes={totals['remotes']} codes={totals['codes']} "
+          f"unverified={totals['unverified']} index={index_bytes/1e3:.1f}KB")
+    print("ingested:", dict(stats))
+    print("skipped protocols:", skipped.most_common(8))
 
 
 if __name__ == "__main__":

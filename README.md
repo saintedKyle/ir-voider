@@ -43,13 +43,21 @@ this repository's Releases.
 
 ## What it does
 
-- **39 categories · 1,502 remotes · 17,789 IR codes** from Flipper-IRDB, bundled offline.
+- **40 categories · 2,050 brands · 5,666 remotes · 90,054 IR codes** from Flipper-IRDB,
+  bundled offline.
 - TVs, ACs, projectors, fans, LED lights, soundbars, audio receivers, streaming
   and cable boxes, DVD/Blu-ray players, cameras, air purifiers, and more.
 - Device-specific buttons on swipeable pages: Basics, Navigation, Media, Numbers,
   Colors and Extras. Power stays pinned above the pages.
 - Searchable brands; scanner with **Last 5** history, Previous/Pause/Stop, and a
   confirmation before an all-brand scan.
+- **Scan speed down to 0.5 s** per code — the **Speed** row on the *Find a working code*
+  card, 4× faster than the old 2 s default. A built-in blaster keeps up; on the jack
+  blaster a long code still finishes its tone before the next one starts, so fast
+  scanning never drops a signal.
+- **Honest provenance.** Codes that come from community dumps rather than this app's
+  own bench runs are labelled **untested source** in the scanner and in the About
+  panel. Nothing is claimed to work that has not been seen to work.
 - Saved devices with custom names, IR boost / **Force mode**, diagnostics.
 - **Ten themes** (orange, gold, green, teal, blue, violet, rose, silver, black, light)
   — pick one under **≡ More → Appearance**.
@@ -132,7 +140,10 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 The IR database can be regenerated with `python tools/build_db.py` after
 downloading [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) into
-`data/irdb_all/`. The README artwork comes from `python
+`data/irdb_all/`. It reads both the top-level captures and the `_Converted_/`
+dumps, drops anything Android cannot transmit, and writes `assets/remotes.json`
+(the index) plus one `assets/db/<category>.json` shard per category, which the
+app loads on demand. The README artwork comes from `python
 tools/make_readme_images.py` and `python tools/make_theme_sheet.py`, which redraw
 the same shading maths in Pillow.
 

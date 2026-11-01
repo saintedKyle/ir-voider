@@ -373,7 +373,7 @@ public class ConfigsActivity extends Activity {
 
         TextView name = text(d.name, 16, TEXT, true);
         box.addView(name);
-        TextView meta = text(d.type + " \u2022 " + d.brand + " \u2014 "
+        TextView meta = text(d.type + " \u2022 " + MainActivity.prettyBrand(d.brand) + " \u2014 "
                 + d.remote.replace('_', ' '), 12, MUTED, false);
         box.addView(meta);
 
