@@ -589,14 +589,11 @@ public class MainActivity extends Activity {
         brandSpinner.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
         remoteSpinner.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
         LinearLayout brandRow = spinnerRow("Brand", brandSpinner);
-        Button searchBrand = styledButton("Search", BTN, 12);
-        searchBrand.setPadding(0, 0, 0, 0);
-        searchBrand.setOnClickListener(v -> showBrandSearch());
-        LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(dp(74), dp(38));
-        searchLp.setMargins(dp(6), 0, 0, 0);
-        brandRow.addView(searchBrand, searchLp);
+        brandRow.addView(searchButton("Search", this::showBrandSearch));
         scanCard.addView(brandRow);
-        scanCard.addView(spinnerRow("Model", remoteSpinner));
+        LinearLayout modelRow = spinnerRow("Model", remoteSpinner);
+        modelRow.addView(searchButton("Search", this::showRemoteSearch));
+        scanCard.addView(modelRow);
         TextView hint = text(
                 "Point the phone\u2019s top edge at the device. The scan sends one "
                         + "power code at a time; stop when it reacts.",
@@ -698,7 +695,7 @@ public class MainActivity extends Activity {
                 continue;
             }
             Button b = styledButton(labelFor(key), BTN, 15);
-            if (isRepeatable(key)) {
+            if (holdable(key)) {
                 attachRepeat(b, key);
             } else {
                 b.setOnClickListener(v -> send(key));
@@ -711,11 +708,12 @@ public class MainActivity extends Activity {
         parent.addView(row);
     }
 
-    private boolean isRepeatable(String key) {
-        return key.equals("vol_up") || key.equals("vol_down")
-                || key.equals("ch_up") || key.equals("ch_down")
-                || key.equals("temp_up") || key.equals("temp_down")
-                || key.equals("brightness_up") || key.equals("brightness_down");
+    /**
+     * Held buttons keep sending, but never the power family: holding a toggle
+     * would strobe the device on and off.
+     */
+    private boolean holdable(String key) {
+        return !"power".equals(key) && !"power_off".equals(key);
     }
 
     private void attachRepeat(Button b, String key) {
@@ -878,8 +876,18 @@ public class MainActivity extends Activity {
         current = r;
         renderControls();
         updateDeviceLabels();
-        status.setText("Power is a toggle \u2014 the same button turns it on and off.");
+        status.setText(powerDirection(r));
         if (!bootstrapping) saveCurrent(r);
+    }
+
+    private String powerDirection(Remote r) {
+        if (!r.buttons.containsKey("power_off")) {
+            return "Power is a toggle \u2014 the same button turns it on and off.";
+        }
+        return "Air Conditioner".equals(r.category)
+                ? "This aircon has separate On and Off codes \u2014 each button is one "
+                        + "direction."
+                : "This profile also has an explicit POWER OFF code.";
     }
 
     private void saveCurrent(Remote r) {
@@ -909,7 +917,28 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void showBrandSearch() {
+    private static final class SearchSheet {
+        final Dialog dialog;
+        final EditText input;
+        final LinearLayout list;
+
+        SearchSheet(Dialog dialog, EditText input, LinearLayout list) {
+            this.dialog = dialog;
+            this.input = input;
+            this.list = list;
+        }
+
+        void onTyped(Runnable r) {
+            input.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
+                @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
+                @Override public void afterTextChanged(Editable s) { r.run(); }
+            });
+        }
+    }
+
+    /** Title, one text field, a scrolling result list and Cancel — sized for a thumb. */
+    private SearchSheet buildSearchSheet(String title, String hint) {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         LinearLayout panel = new LinearLayout(this);
@@ -918,9 +947,9 @@ public class MainActivity extends Activity {
         panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(), palette.gloss(0.10f)));
         Surface.elevate(panel, 28, 12);
 
-        panel.addView(text("Find a brand", 22, TEXT, true));
+        panel.addView(text(title, 22, TEXT, true));
         EditText input = new EditText(this);
-        input.setHint("Search brand");
+        input.setHint(hint);
         input.setHintTextColor(MUTED);
         input.setTextColor(TEXT);
         input.setSingleLine(true);
@@ -938,37 +967,6 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         listLp.topMargin = dp(8);
         panel.addView(scroll, listLp);
-
-        Runnable fill = () -> {
-            list.removeAllViews();
-            String q = input.getText().toString().trim().toLowerCase();
-            int shown = 0;
-            for (int i = 0; i < brands.size(); i++) {
-                Brand b = brands.get(i);
-                if (!q.isEmpty() && !prettyBrand(b.name).toLowerCase().contains(q)) continue;
-                shown++;
-                boolean active = current != null && b.name.equals(current.brand);
-                TextView row = text(prettyBrand(b.name), 15, active ? ACCENT : TEXT, active);
-                row.setPadding(dp(10), dp(13), dp(10), dp(13));
-                row.setBackground(active ? Surface.raised(this, 12, ACTIVE,
-                        Surface.blend(CARD, ACCENT, 0.5f), palette.gloss(0.16f)) : null);
-                final int index = i;
-                row.setOnClickListener(v -> {
-                    brandSpinner.setSelection(index);
-                    dialog.dismiss();
-                });
-                list.addView(row);
-            }
-            if (shown == 0) {
-                list.addView(text("No matching brand.", 13, MUTED, false));
-            }
-        };
-        input.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
-            @Override public void afterTextChanged(Editable s) { fill.run(); }
-        });
-        fill.run();
 
         Button cancel = styledButton("Cancel", BTN, 14);
         cancel.setOnClickListener(v -> dialog.dismiss());
@@ -988,6 +986,104 @@ public class MainActivity extends Activity {
             lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.72f);
             w.setAttributes(lp);
         }
+        return new SearchSheet(dialog, input, list);
+    }
+
+    private Button searchButton(String label, Runnable onTap) {
+        Button b = styledButton(label, BTN, 12);
+        b.setPadding(0, 0, 0, 0);
+        b.setOnClickListener(v -> onTap.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(74), dp(38));
+        lp.setMargins(dp(6), 0, 0, 0);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private void showBrandSearch() {
+        SearchSheet sheet = buildSearchSheet("Find a brand", "Type to filter brands");
+        Runnable fill = () -> {
+            sheet.list.removeAllViews();
+            String q = sheet.input.getText().toString().trim().toLowerCase();
+            int shown = 0;
+            for (int i = 0; i < brands.size(); i++) {
+                Brand b = brands.get(i);
+                if (!q.isEmpty() && !prettyBrand(b.name).toLowerCase().contains(q)) continue;
+                shown++;
+                boolean active = current != null && b.name.equals(current.brand);
+                TextView row = text(prettyBrand(b.name), 15, active ? ACCENT : TEXT, active);
+                row.setPadding(dp(10), dp(13), dp(10), dp(13));
+                row.setBackground(active ? Surface.raised(this, 12, ACTIVE,
+                        Surface.blend(CARD, ACCENT, 0.5f), palette.gloss(0.16f)) : null);
+                final int index = i;
+                row.setOnClickListener(v -> {
+                    brandSpinner.setSelection(index);
+                    sheet.dialog.dismiss();
+                });
+                sheet.list.addView(row);
+            }
+            if (shown == 0) {
+                sheet.list.addView(text("No matching brand.", 13, MUTED, false));
+            }
+        };
+        sheet.onTyped(fill);
+        fill.run();
+    }
+
+    /** Every remote in this device type, typed away in one field. */
+    private void showRemoteSearch() {
+        SearchSheet sheet = buildSearchSheet("Find a model",
+                "Type a model number, e.g. HWE08");
+        Runnable fill = () -> {
+            sheet.list.removeAllViews();
+            String q = sheet.input.getText().toString().trim().toLowerCase();
+            int shown = 0;
+            int matched = 0;
+            for (int bi = 0; bi < brands.size(); bi++) {
+                Brand b = brands.get(bi);
+                for (int ri = 0; ri < b.remotes.size(); ri++) {
+                    Remote r = b.remotes.get(ri);
+                    String label = prettyBrand(b.name) + " \u2014 " + pretty(r.name);
+                    if (!q.isEmpty() && !label.toLowerCase().contains(q)) continue;
+                    matched++;
+                    if (shown >= 200) continue;
+                    shown++;
+                    boolean active = r == current;
+                    TextView row = text(label, 13, active ? ACCENT : TEXT, active);
+                    row.setPadding(dp(10), dp(12), dp(10), dp(12));
+                    row.setBackground(active ? Surface.raised(this, 12, ACTIVE,
+                            Surface.blend(CARD, ACCENT, 0.5f), palette.gloss(0.16f)) : null);
+                    final int brandIndex = bi;
+                    final int remoteIndex = ri;
+                    row.setOnClickListener(v -> {
+                        pickRemote(brandIndex, remoteIndex);
+                        sheet.dialog.dismiss();
+                    });
+                    sheet.list.addView(row);
+                }
+            }
+            if (matched == 0) {
+                sheet.list.addView(text("No matching model in this device type.",
+                        13, MUTED, false));
+            } else if (shown < matched) {
+                sheet.list.addView(text("Showing the first 200 of " + matched
+                        + " \u2014 keep typing to narrow.", 12, MUTED, false));
+            }
+        };
+        sheet.onTyped(fill);
+        fill.run();
+    }
+
+    private void pickRemote(int brandIndex, int remoteIndex) {
+        if (brandIndex < 0 || brandIndex >= brands.size()) return;
+        Brand b = brands.get(brandIndex);
+        if (remoteIndex < 0 || remoteIndex >= b.remotes.size()) return;
+        Remote r = b.remotes.get(remoteIndex);
+        // applyRemote owns the spinner sync; doing it here would race the late
+        // onItemSelected callback, which jumps back to the brand's first remote.
+        applyRemote(r, false);
+        if (current != r) return;
+        status.setText(powerDirection(r));
+        if (!bootstrapping) saveCurrent(r);
     }
 
     private void updateCategoryLabel() {
@@ -1079,13 +1175,11 @@ public class MainActivity extends Activity {
             status.setText("This remote has no \u201c" + labelFor(key) + "\u201d code.");
             return;
         }
-        boolean repeat;
-        if ("power".equals(key)) {
-            repeat = "Air Conditioner".equals(current.category)
-                    && DeviceStore.acPowerRepeat(this);
-        } else {
-            repeat = isRepeatable(key) || DeviceStore.boostAll(this);
-        }
+        boolean isPower = "power".equals(key) || "power_off".equals(key);
+        boolean repeat = isPower
+                ? "Air Conditioner".equals(current.category)
+                        && DeviceStore.acPowerRepeat(this)
+                : DeviceStore.boostAll(this);
         transmit(code, repeat);
         status.setText("Sent " + labelFor(key) + ".");
     }
@@ -1134,6 +1228,16 @@ public class MainActivity extends Activity {
                 + "blaster, or enable IR override to try anyway.";
     }
 
+    /**
+     * Two aircon state packets 50 ms apart read as one corrupted burst, so a repeat
+     * gets a gap the unit can separate into two presses. Force mode keeps the tight
+     * timing some built-in emitters need.
+     */
+    private int frameGapMs() {
+        if (DeviceStore.forceMode(this)) return 25;
+        return current != null && "Air Conditioner".equals(current.category) ? 300 : 50;
+    }
+
     private void transmit(Code code, boolean allowRepeat) {
         int repeats = DeviceStore.repeats(this);
         if (allowRepeat && DeviceStore.forceMode(this)) repeats = Math.max(3, repeats);
@@ -1155,6 +1259,7 @@ public class MainActivity extends Activity {
         if (irExecutor.isShutdown()) return;
         if (!irBusy.compareAndSet(false, true)) return;
         final int count = Math.max(1, Math.min(3, repeats));
+        final int gapMs = frameGapMs();
         try {
             irExecutor.execute(() -> {
             String failure = null;
@@ -1169,7 +1274,7 @@ public class MainActivity extends Activity {
                     } else {
                         ir.transmit(code.freq, code.pattern);
                     }
-                    if (i + 1 < count) Thread.sleep(DeviceStore.forceMode(this) ? 25 : 50);
+                    if (i + 1 < count) Thread.sleep(gapMs);
                 }
             } catch (InterruptedException ignored) {
             } catch (Exception e) {
@@ -1593,7 +1698,11 @@ public class MainActivity extends Activity {
         controlsCard.addView(controlsLabel);
 
         if (current.buttons.containsKey("power")) {
-            Button power = highlightButton("POWER", 20);
+            boolean hasOff = current.buttons.containsKey("power_off");
+            boolean aircon = "Air Conditioner".equals(current.category);
+            // Aircon captures pair `power` with `power_off` as the two directions; a TV
+            // usually pairs a toggle with standby, so only the AC gets the ON label.
+            Button power = highlightButton(hasOff && aircon ? "POWER ON" : "POWER", 20);
             power.setOnClickListener(v -> send("power"));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
@@ -1601,6 +1710,16 @@ public class MainActivity extends Activity {
             controlsCard.addView(power, lp);
             buttons.put("power", power);
 
+            if (hasOff) {
+                Button powerOff = styledButton("POWER OFF", BTN, 17);
+                powerOff.setTextColor(RED);
+                powerOff.setOnClickListener(v -> send("power_off"));
+                LinearLayout.LayoutParams po = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(60));
+                po.topMargin = dp(8);
+                controlsCard.addView(powerOff, po);
+                buttons.put("power_off", powerOff);
+            }
             if ("Air Conditioner".equals(current.category)) {
                 Button power2 = styledButton("POWER ×2", BTN, 14);
                 power2.setOnClickListener(v -> sendPowerRepeat());
@@ -1609,19 +1728,12 @@ public class MainActivity extends Activity {
                 p2.topMargin = dp(8);
                 controlsCard.addView(power2, p2);
                 buttons.put("__power2", power2);
-                if (current.buttons.containsKey("power_off")) {
-                    Button powerOff = styledButton("POWER OFF", BTN, 14);
-                    powerOff.setTextColor(RED);
-                    powerOff.setOnClickListener(v -> send("power_off"));
-                    LinearLayout.LayoutParams po = new LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
-                    po.topMargin = dp(8);
-                    controlsCard.addView(powerOff, po);
-                    buttons.put("power_off", powerOff);
-                }
-                controlsCard.addView(text(
-                        "Some ACs use separate On/Off codes; try POWER OFF too. "
-                                + "POWER ×2 helps units that ignore one frame.",
+                controlsCard.addView(text(hasOff
+                        ? "This model has separate On and Off codes, so each button is "
+                        + "one direction. If the unit ignores a single frame, POWER ×2 "
+                        + "sends it twice with a real gap between."
+                        : "Power is one toggle code here. If the unit ignores a single "
+                                + "frame, try POWER ×2.",
                         11, MUTED, false));
             }
         }
@@ -1684,9 +1796,9 @@ public class MainActivity extends Activity {
                             + "is missing, its IR protocol is not in this database.",
                     11, MUTED, false));
         }
-        if (hasRepeatable(pages)) {
-            controlsCard.addView(text("Hold Vol / CH / Temp / Bright to repeat.",
-                    11, MUTED, false));
+        if (hasHoldable(pages)) {
+            controlsCard.addView(text("One tap sends one code. Hold a button to keep "
+                    + "sending it.", 11, MUTED, false));
         }
     }
 
@@ -1736,7 +1848,8 @@ public class MainActivity extends Activity {
 
         List<String> extras = new ArrayList<>();
         for (String key : BUTTON_ORDER) {
-            if (key.equals("power")) continue;
+            // Both power buttons live in the header; a second copy in EXTRAS is clutter.
+            if (key.equals("power") || key.equals("power_off")) continue;
             if (current.buttons.containsKey(key) && used.add(key)) extras.add(key);
         }
         addPage(pages, "EXTRAS", extras);
@@ -1815,9 +1928,9 @@ public class MainActivity extends Activity {
         }
     }
 
-    private boolean hasRepeatable(List<Page> pages) {
+    private boolean hasHoldable(List<Page> pages) {
         for (Page page : pages) {
-            for (String key : page.keys) if (isRepeatable(key)) return true;
+            for (String key : page.keys) if (holdable(key)) return true;
         }
         return false;
     }
@@ -2685,7 +2798,8 @@ public class MainActivity extends Activity {
                         + "Codes from Flipper-IRDB (CC0). Protocol encoding based on "
                         + "Flipper Zero firmware and IRremoteESP8266.\n\n"
                         + "The phone's IR LED power cannot be amplified in software. "
-                        + "Boost repeats frames to improve reliability.\n\n"
+                        + "One tap always sends a single frame; the repeat count only "
+                        + "applies when Boost or Repeat aircon POWER is switched on.\n\n"
                         + "The internet permission is used only by the optional update "
                         + "check in More \u2192 Updates. With it switched off this app "
                         + "never opens a connection.")

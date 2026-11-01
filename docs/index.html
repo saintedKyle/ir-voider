@@ -32,6 +32,9 @@
       <div class="card"><h3>40 device types</h3><p>TV, air conditioner, projector, fan, LED, soundbar, audio, streaming and more.</p></div>
       <div class="card"><h3>5,666 remotes</h3><p>90,054 IR codes across 2,050 brands from the public Flipper-IRDB database, stored offline.</p></div>
       <div class="card"><h3>Auto-find</h3><p>Sends power codes until your device reacts, with a Previous replay if you miss it. Scan as fast as 0.5 s per code.</p></div>
+      <div class="card"><h3>One press, one code</h3><p>A tap fires exactly once, so volume and temperature step once like the original remote. Hold a button to keep sending it; power stays single-shot so a toggle cannot strobe on and off.</p></div>
+      <div class="card"><h3>Type to search</h3><p>Tap <em>Search</em> beside brand or model and type — <code>HWE08</code> lands on that aircon profile instead of scrolling a list of thousands.</p></div>
+      <div class="card"><h3>Aircon On and Off</h3><p>Aircon profiles that captured both directions show <em>POWER ON</em> and <em>POWER OFF</em>, and <em>POWER ×2</em> re-sends with a real gap for units that ignore one frame. Every other device type now shows <em>POWER OFF</em> too — 1,044 remotes carried an Off code the old interface never displayed.</p></div>
       <div class="card"><h3>Honest labels</h3><p>Codes this app has not bench-tested are shown as <em>untested source</em> while scanning, so a long-shot brand is never sold to you as a sure thing.</p></div>
       <div class="card"><h3>Saved devices</h3><p>Name your TV, AC or projector and switch between them.</p></div>
       <div class="card"><h3>Works offline</h3><p>Every remote and scan runs in airplane mode. No ads, no accounts, no analytics — the one optional network call is the update check, and you can switch it off.</p></div>
@@ -42,7 +45,9 @@
     <h2>How it works</h2>
     <p>The phone's IR LED sends the same kind of invisible pulses as a normal remote.
       IR Voider uses Android's <code>ConsumerIrManager</code> to transmit stored timing
-      patterns. There is no Wi-Fi, Bluetooth, account or server involved. IR is
+      patterns. Nothing about the remote itself uses Wi-Fi, Bluetooth, an account or a
+      server — the only network code in the app is the optional update check, and you can
+      switch it off. IR is
       line-of-sight: point the top edge at the device.</p>
     <p>The phone cannot receive IR, so it cannot learn directly from another remote.
       Importing a raw capture made with an external IR receiver is supported.</p>

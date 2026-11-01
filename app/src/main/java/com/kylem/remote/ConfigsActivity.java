@@ -259,10 +259,10 @@ public class ConfigsActivity extends Activity {
         });
         settings.addView(row("IR boost", boost));
         settings.addView(text(
-                "Repeats volume/channel presses to improve reliability. Power, OK "
-                        + "and navigation are always sent once, so they cannot "
-                        + "double-fire. Software cannot increase the LED's physical "
-                        + "power or range.",
+                "How many frames a boosted button sends. A plain tap is always one "
+                        + "frame \u2014 this count only applies when \u201cBoost all "
+                        + "buttons\u201d or the aircon POWER repeat is on. Software "
+                        + "cannot increase the LED\u2019s physical power or range.",
                 11, MUTED, false));
 
 
@@ -338,7 +338,8 @@ public class ConfigsActivity extends Activity {
         addCard(root, learn);
 
         TextView credit = text(
-                "Codes: Flipper-IRDB (CC0). No internet permission.", 11,
+                "Codes: Flipper-IRDB (CC0). The network is used only for the "
+                        + "optional update check.", 11,
                 MUTED, false);
         credit.setPadding(dp(4), dp(4), 0, 0);
         root.addView(credit);

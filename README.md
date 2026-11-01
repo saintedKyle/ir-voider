@@ -36,7 +36,8 @@ this repository's Releases.
 
 1. Tap **≡ More** (top-left) and pick a category: TV, air conditioner, projector,
    fan, LED light, soundbar, and more.
-2. Pick your brand and model, then press **POWER**.
+2. Pick your brand and model — or tap **Search** next to either row and type, e.g.
+   `HWE08`, to jump straight to that profile. Then press **POWER**.
 3. No reaction? Tap **Find code**. It sends one power code at a time; when the
    device reacts, tap **It worked**. **Previous** replays the last code.
 4. Save and name the remote with **⚙** (top-right).
@@ -49,6 +50,18 @@ this repository's Releases.
   and cable boxes, DVD/Blu-ray players, cameras, air purifiers, and more.
 - Device-specific buttons on swipeable pages: Basics, Navigation, Media, Numbers,
   Colors and Extras. Power stays pinned above the pages.
+- **One tap sends exactly one code.** Volume, channel, temperature and everything
+  else fire once, the way a press on the original remote does.
+- **Hold any button to keep sending it** — release stops. Power is the exception:
+  holding a toggle would strobe the device on and off, so it stays one press.
+- **Type to search brands and models** on the *Find a working code* card. One field
+  filters every profile in the category, so `HWE08` or `AS18` finds the aircon
+  without scrolling a spinner.
+- **Explicit aircon On and Off.** A profile that captured both directions shows
+  **POWER ON** and **POWER OFF** instead of one guessing toggle, and **POWER ×2**
+  re-sends with a real gap for units that ignore a single frame. Every other device
+  type now shows **POWER OFF** too — 1,044 remotes carried an Off code the old
+  interface never displayed.
 - Searchable brands; scanner with **Last 5** history, Previous/Pause/Stop, and a
   confirmation before an all-brand scan.
 - **Scan speed down to 0.5 s** per code — the **Speed** row on the *Find a working code*
@@ -58,7 +71,7 @@ this repository's Releases.
 - **Honest provenance.** Codes that come from community dumps rather than this app's
   own bench runs are labelled **untested source** in the scanner and in the About
   panel. Nothing is claimed to work that has not been seen to work.
-- Saved devices with custom names, IR boost / **Force mode**, diagnostics.
+- Saved devices with custom names, opt-in **IR boost** / **Force mode**, diagnostics.
 - **Ten themes** (orange, gold, green, teal, blue, violet, rose, silver, black, light)
   — pick one under **≡ More → Appearance**.
 - Air-conditioner temperature, mode, fan and swing where the profile supports it.
@@ -75,8 +88,10 @@ this repository's Releases.
   Everything else, including every remote and scan, works in airplane mode.
 
 Air conditioners include the buttons captured in the database. Raw AC frames can
-represent a fixed state rather than an incremental step. If your model is missing,
-its protocol is not in the database; a raw `.ir` capture can add your own buttons.
+represent a fixed state rather than an incremental step, and a captured power code
+may be one-directional — that is why profiles with both an On and an Off capture
+show two separate buttons. If your model is missing, its protocol is not in the
+database; a raw `.ir` capture can add your own buttons.
 
 ## Look
 

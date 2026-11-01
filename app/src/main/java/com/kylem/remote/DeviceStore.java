@@ -135,7 +135,8 @@ public final class DeviceStore {
     }
 
     public static int repeats(Context c) {
-        return Math.max(1, Math.min(3, prefs(c).getInt("repeats", 2)));
+        // One tap must look like one press on the device. Anything above 1 is opt-in.
+        return Math.max(1, Math.min(3, prefs(c).getInt("repeats", 1)));
     }
 
     public static void setRepeats(Context c, int value) {

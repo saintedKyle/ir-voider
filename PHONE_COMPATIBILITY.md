@@ -738,4 +738,4 @@ These can send IR, but they are not Android phones and cannot install IR Voider:
 
 **If your phone is not listed:** that does not mean it lacks IR. Install the app and read **IR READY / JACK BLASTER / NO IR**. If you want a model added, send the exact model number and, if possible, a photo of the top edge and Settings → About phone.
 
-Last updated: **2026-11-01** (database expanded to 5,666 remotes and 0.5 s scanning added for 1.6.2; jack blaster added for 1.6.1).
+Last updated: **2026-11-01** (one tap now sends exactly one code, hold-to-repeat and model search added in 1.6.3; database expanded to 5,666 remotes and 0.5 s scanning in 1.6.2; jack blaster added for 1.6.1).
