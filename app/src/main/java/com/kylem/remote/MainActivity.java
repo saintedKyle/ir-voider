@@ -54,6 +54,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.widget.ViewFlipper;
 
@@ -105,7 +106,10 @@ public class MainActivity extends Activity {
             "color", "red", "green", "yellow", "blue", "zoom_in", "zoom_out",
             "subtitle", "audio", "aspect", "last", "fav", "apps", "netflix",
             "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
-            "num_8", "num_9", "dash", "dot"
+            "num_8", "num_9", "dash", "dot",
+            "letter_a", "letter_b", "letter_c", "letter_d", "letter_e", "letter_f", "letter_g", "letter_h", "letter_i", "letter_j", "letter_k", "letter_l", "letter_m",
+            "letter_n", "letter_o", "letter_p", "letter_q", "letter_r", "letter_s", "letter_t", "letter_u", "letter_v", "letter_w", "letter_x", "letter_y", "letter_z",
+            "space", "backspace", "enter"
     };
     private static final String[] BUTTON_LABELS = {
             "POWER", "Power Off", "Vol +", "Vol −", "Mute", "CH +", "CH −",
@@ -115,9 +119,26 @@ public class MainActivity extends Activity {
             "Speed", "Light", "Timer", "Sleep", "Bright +", "Bright −", "Color",
             "Red", "Green", "Yellow", "Blue", "Zoom +", "Zoom −", "Subtitle",
             "Audio", "Aspect", "Last", "Fav", "Apps", "Netflix", "0", "1", "2", "3",
-            "4", "5", "6", "7", "8", "9", "Dash", "Dot"
+            "4", "5", "6", "7", "8", "9", "Dash", "Dot",
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+            "Space", "Backspace", "Enter"
     };
     private static final String[] DPAD = {"up", "down", "left", "right", "ok"};
+    private static final String[] KEYBOARD_KEYS = {
+            "letter_a", "letter_b", "letter_c", "letter_d", "letter_e", "letter_f",
+            "letter_g", "letter_h", "letter_i", "letter_j", "letter_k", "letter_l",
+            "letter_m", "letter_n", "letter_o", "letter_p", "letter_q", "letter_r",
+            "letter_s", "letter_t", "letter_u", "letter_v", "letter_w", "letter_x",
+            "letter_y", "letter_z", "space", "backspace", "enter"
+    };
+    private static final String[][] PAIRS = {
+            {"vol_up", "vol_down"}, {"ch_up", "ch_down"}, {"temp_up", "temp_down"},
+            {"brightness_up", "brightness_down"}, {"zoom_in", "zoom_out"},
+            {"rewind", "forward"}, {"prev", "next"}
+    };
+    private static final int[] SCAN_SPEEDS = {200, 300, 500, 1000, 2000};
+    private static final String[] SPEED_LABELS = {"0.2 s", "0.3 s", "0.5 s", "1 s", "2 s"};
+    private static final int TEXT_GAP_MS = 170;
     private static final String[] BASIC_KEYS = {"vol_up", "vol_down", "mute", "ch_up", "ch_down", "input"};
     private static final String[] NAV_EXTRA = {"back", "home", "menu", "exit", "info", "guide"};
     private static final String[] MEDIA_KEYS = {"play_pause", "stop", "rewind", "forward",
@@ -186,6 +207,9 @@ public class MainActivity extends Activity {
     private Spinner brandSpinner;
     private Spinner remoteSpinner;
     private final Button[] speedButtons = new Button[5];
+    private Spinner rangeFromSpinner;
+    private Spinner rangeToSpinner;
+    private TextView rangeCount;
     private CheckBox allBrands;
     private TextView status;
     private TextView irChip;
@@ -207,7 +231,7 @@ public class MainActivity extends Activity {
     private boolean running;
     private boolean scanPaused;
     private int nextCandidate;
-    private int scanDelayMs = 2000;
+    private int scanDelayMs = 200;
     private String repeatKey;
     private TextView scanTimer;
     private long scanStartedAt;
@@ -606,6 +630,7 @@ public class MainActivity extends Activity {
         allBrands.setTextColor(TEXT);
         allBrands.setButtonTintList(ColorStateList.valueOf(ACCENT));
         scanCard.addView(allBrands);
+        scanCard.addView(buildRangeRow());
 
         LinearLayout speedRow = new LinearLayout(this);
         speedRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -614,7 +639,7 @@ public class MainActivity extends Activity {
         TextView speedLabel = text("Speed", 14, MUTED, false);
         speedLabel.setWidth(dp(58));
         speedRow.addView(speedLabel);
-        String[] speedLabels = {"0.5 s", "1 s", "1.5 s", "2 s", "3 s"};
+        String[] speedLabels = SPEED_LABELS;
         for (int i = 0; i < speedButtons.length; i++) {
             final int index = i;
             Button b = styledButton(speedLabels[i], BTN, 13);
@@ -625,8 +650,7 @@ public class MainActivity extends Activity {
             speedButtons[i] = b;
         }
         scanCard.addView(speedRow);
-        setScanSpeed(scanDelayMs <= 600 ? 0 : scanDelayMs <= 1100 ? 1
-                : scanDelayMs <= 1600 ? 2 : scanDelayMs <= 2200 ? 3 : 4, false);
+        setScanSpeed(speedIndexFor(scanDelayMs), false);
 
         findButton = highlightButton("Find code", 16);
         findButton.setOnClickListener(v -> startAutoFind());
@@ -753,8 +777,8 @@ public class MainActivity extends Activity {
     }
 
     private void setScanSpeed(int index, boolean persist) {
-        scanDelayMs = index == 0 ? 500 : index == 1 ? 1000 : index == 2 ? 1500
-                : index == 3 ? 2000 : 3000;
+        index = Math.max(0, Math.min(SCAN_SPEEDS.length - 1, index));
+        scanDelayMs = SCAN_SPEEDS[index];
         if (persist) DeviceStore.setScanDelayMs(this, scanDelayMs);
         for (int i = 0; i < speedButtons.length; i++) {
             Button b = speedButtons[i];
@@ -770,6 +794,128 @@ public class MainActivity extends Activity {
             b.setTypeface(Typeface.create("sans-serif-medium",
                     active ? Typeface.BOLD : Typeface.NORMAL));
         }
+    }
+
+    private int speedIndexFor(int delay) {
+        int best = 0;
+        int gap = Integer.MAX_VALUE;
+        for (int i = 0; i < SCAN_SPEEDS.length; i++) {
+            int d = Math.abs(SCAN_SPEEDS[i] - delay);
+            if (d < gap) {
+                gap = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /** Brand-initial range for an all-brand scan: F to R skips the rest. */
+    private LinearLayout buildRangeRow() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(4), 0, 0);
+        TextView label = text("Range", 14, MUTED, false);
+        label.setWidth(dp(58));
+        row.addView(label);
+
+        String[] letters = new String[26];
+        for (int i = 0; i < 26; i++) letters[i] = String.valueOf((char) ('A' + i));
+        rangeFromSpinner = letterSpinner(letters, DeviceStore.scanFrom(this));
+        rangeToSpinner = letterSpinner(letters, DeviceStore.scanTo(this));
+        row.addView(rangeFromSpinner, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView dash = text("\u2013", 14, MUTED, false);
+        dash.setPadding(dp(4), 0, dp(4), 0);
+        row.addView(dash);
+        row.addView(rangeToSpinner, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        box.addView(row);
+
+        rangeCount = text("", 10, MUTED, false);
+        rangeCount.setPadding(dp(58), 0, 0, dp(2));
+        box.addView(rangeCount);
+
+        SimpleItemListener listener = new SimpleItemListener() {
+            @Override
+            public void onItemSelected(int position) {
+                if (rangeFromSpinner == null || rangeToSpinner == null) return;
+                DeviceStore.setScanFrom(MainActivity.this, String.valueOf(
+                        (char) ('A' + rangeFromSpinner.getSelectedItemPosition())));
+                DeviceStore.setScanTo(MainActivity.this, String.valueOf(
+                        (char) ('A' + rangeToSpinner.getSelectedItemPosition())));
+                updateRangeCount();
+            }
+        };
+        rangeFromSpinner.setOnItemSelectedListener(listener);
+        rangeToSpinner.setOnItemSelectedListener(listener);
+        updateRangeCount();
+        return box;
+    }
+
+    private Spinner letterSpinner(String[] letters, String selected) {
+        Spinner spinner = new Spinner(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, letters);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        int index = 0;
+        for (int i = 0; i < letters.length; i++) {
+            if (letters[i].equals(selected)) index = i;
+        }
+        spinner.setSelection(index);
+        return spinner;
+    }
+
+    private char rangeFrom() {
+        if (rangeFromSpinner == null) return 'A';
+        int p = Math.max(0, Math.min(25, rangeFromSpinner.getSelectedItemPosition()));
+        return (char) ('A' + p);
+    }
+
+    private char rangeTo() {
+        if (rangeToSpinner == null) return 'Z';
+        int p = Math.max(0, Math.min(25, rangeToSpinner.getSelectedItemPosition()));
+        return (char) ('A' + p);
+    }
+
+    private boolean brandInRange(String brand) {
+        char from = rangeFrom();
+        char to = rangeTo();
+        if (from > to) {
+            char swap = from;
+            from = to;
+            to = swap;
+        }
+        String pretty = prettyBrand(brand);
+        if (pretty.isEmpty()) return false;
+        char c = Character.toUpperCase(pretty.charAt(0));
+        if (c < 'A' || c > 'Z') return from == 'A';
+        return c >= from && c <= to;
+    }
+
+    private void updateRangeCount() {
+        if (rangeCount == null) return;
+        char from = rangeFrom();
+        char to = rangeTo();
+        if (from > to) {
+            char swap = from;
+            from = to;
+            to = swap;
+        }
+        int count = 0;
+        for (Brand b : brands) {
+            if (!brandInRange(b.name)) continue;
+            for (Remote r : b.remotes) {
+                if (r.buttons.containsKey("power")) count++;
+            }
+        }
+        rangeCount.setText(String.valueOf(from) + " \u2013 " + to + " \u00b7 " + count
+                + " power codes \u00b7 used when scanning every brand");
     }
 
     private String labelFor(String key) {
@@ -1091,6 +1237,7 @@ public class MainActivity extends Activity {
             categoryLabel.setText(category.name + " \u2022 " + category.remoteCount
                     + " remotes \u2022 \u2261 for more");
         }
+        updateRangeCount();
     }
 
     private Remote findRemote(String brand, String name, int hash) {
@@ -1239,25 +1386,33 @@ public class MainActivity extends Activity {
     }
 
     private void transmit(Code code, boolean allowRepeat) {
+        transmit(code, allowRepeat, null);
+    }
+
+    private boolean transmit(Code code, boolean allowRepeat, Runnable onDone) {
         int repeats = DeviceStore.repeats(this);
         if (allowRepeat && DeviceStore.forceMode(this)) repeats = Math.max(3, repeats);
-        transmit(code, allowRepeat ? repeats : 1);
+        return transmit(code, allowRepeat ? repeats : 1, onDone);
     }
 
     private void transmit(Code code, int repeats) {
+        transmit(code, repeats, null);
+    }
+
+    private boolean transmit(Code code, int repeats, Runnable onDone) {
         final boolean jack = emitterState() == EMITTER_JACK;
         if (!jack) {
             if (ir == null) {
                 status.setText("No IR service on this phone.");
-                return;
+                return false;
             }
             if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
                 status.setText(noEmitterMessage());
-                return;
+                return false;
             }
         }
-        if (irExecutor.isShutdown()) return;
-        if (!irBusy.compareAndSet(false, true)) return;
+        if (irExecutor.isShutdown()) return false;
+        if (!irBusy.compareAndSet(false, true)) return false;
         final int count = Math.max(1, Math.min(3, repeats));
         final int gapMs = frameGapMs();
         try {
@@ -1287,10 +1442,13 @@ public class MainActivity extends Activity {
                     runOnUiThread(() -> status.setText(
                             (jack ? "Jack send failed: " : "IR send failed: ") + why));
                 }
+                if (onDone != null) runOnUiThread(onDone);
             }
             });
+            return true;
         } catch (RejectedExecutionException e) {
             irBusy.set(false);
+            return false;
         }
     }
 
@@ -1304,6 +1462,204 @@ public class MainActivity extends Activity {
         getWindow().getDecorView().performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         transmit(code, 2);
         status.setText("Sent POWER ×2.");
+    }
+
+    /** Phone keyboard -> the IR keys this profile actually carries. */
+    private void showTypeDialog() {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(20));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("Type to TV", 24, TEXT, true));
+        TextView note = text(typeSupport(), 12, MUTED, false);
+        note.setPadding(0, dp(6), 0, dp(10));
+        panel.addView(note);
+
+        EditText input = new EditText(this);
+        input.setHint("Channel number, PIN or text");
+        input.setHintTextColor(MUTED);
+        input.setTextColor(TEXT);
+        input.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        input.setMinLines(2);
+        input.setGravity(Gravity.TOP | Gravity.START);
+        input.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        panel.addView(input, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(96)));
+
+        TextView preview = text("", 11, MUTED, false);
+        preview.setPadding(0, dp(6), 0, 0);
+        panel.addView(preview);
+        input.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                int ok = 0;
+                int skipped = 0;
+                for (char ch : s.toString().toCharArray()) {
+                    if (Character.isWhitespace(ch)) continue;
+                    String key = typeKeyFor(ch);
+                    if (key != null && current.buttons.containsKey(key)) ok++;
+                    else skipped++;
+                }
+                preview.setText("Sends " + ok + " key" + (ok == 1 ? "" : "s")
+                        + (skipped > 0 ? " \u00b7 " + skipped + " character"
+                        + (skipped == 1 ? "" : "s") + " not in this profile" : ""));
+            }
+        });
+
+        Button send = highlightButton("Send to device", 16);
+        send.setOnClickListener(v -> {
+            String value = input.getText().toString();
+            dialog.dismiss();
+            sendTyped(value);
+        });
+        LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        sendLp.topMargin = dp(12);
+        panel.addView(send, sendLp);
+
+        Button close = styledButton("Close", BTN, 14);
+        close.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        closeLp.topMargin = dp(8);
+        panel.addView(close, closeLp);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(window.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            window.setAttributes(lp);
+        }
+        input.requestFocus();
+    }
+
+    private String typeSupport() {
+        if (current == null) return "";
+        boolean digits = current.buttons.containsKey("num_0");
+        boolean letters = current.buttons.containsKey("letter_a");
+        StringBuilder sb = new StringBuilder("Each character is one IR key press. ");
+        if (letters) {
+            sb.append("This profile has letter keys, so text types directly.");
+        } else {
+            sb.append("This profile has no letter keys \u2014 digits, dash and dot "
+                    + "send; letters are skipped. TVs accept letters through their "
+                    + "on-screen keyboard, not a universal IR text code.");
+        }
+        if (!digits) sb.append(" It has no digit keys either.");
+        return sb.toString();
+    }
+
+    private String typeKeyFor(char ch) {
+        if (ch >= '0' && ch <= '9') return "num_" + ch;
+        if (ch >= 'a' && ch <= 'z') return "letter_" + ch;
+        if (ch >= 'A' && ch <= 'Z') return "letter_" + Character.toLowerCase(ch);
+        if (ch == '-') return "dash";
+        if (ch == '.') return "dot";
+        if (ch == ' ') return "space";
+        if (ch == '\n') return "enter";
+        if (ch == '\b') return "backspace";
+        return null;
+    }
+
+    /** One queued burst, so a whole word never drops keys on a busy emitter. */
+    private void sendTyped(String text) {
+        if (current == null) return;
+        boolean jack = emitterState() == EMITTER_JACK;
+        if (!jack) {
+            if (ir == null) {
+                status.setText("No IR service on this phone.");
+                return;
+            }
+            if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
+                status.setText(noEmitterMessage());
+                return;
+            }
+        }
+        List<Code> codes = new ArrayList<>();
+        int skipped = 0;
+        for (char ch : text.toCharArray()) {
+            if (ch == '\r') continue;
+            String key = typeKeyFor(ch);
+            Code code = key == null ? null : current.buttons.get(key);
+            if (code == null) {
+                if (!Character.isWhitespace(ch)) skipped++;
+                continue;
+            }
+            codes.add(code);
+        }
+        if (codes.isEmpty()) {
+            status.setText("Nothing in that text matches this remote's keys.");
+            return;
+        }
+        if (irExecutor.isShutdown() || !irBusy.compareAndSet(false, true)) {
+            status.setText("IR is busy \u2014 wait a moment and send again.");
+            return;
+        }
+        final boolean throughJack = jack;
+        final int missed = skipped;
+        final int count = codes.size();
+        try {
+            irExecutor.execute(() -> {
+                String failure = null;
+                try {
+                    for (int i = 0; i < codes.size(); i++) {
+                        Code code = codes.get(i);
+                        if (throughJack) {
+                            JackBlaster.Result sent = JackBlaster.send(this, code);
+                            if (!sent.ok) {
+                                failure = sent.detail;
+                                break;
+                            }
+                        } else {
+                            ir.transmit(code.freq, code.pattern);
+                        }
+                        if (i + 1 < codes.size()) Thread.sleep(TEXT_GAP_MS);
+                    }
+                } catch (InterruptedException ignored) {
+                } catch (Exception e) {
+                    failure = e.getMessage() == null
+                            ? e.getClass().getSimpleName() : e.getMessage();
+                } finally {
+                    irBusy.set(false);
+                    final String why = failure;
+                    runOnUiThread(() -> {
+                        if (why != null) {
+                            status.setText("Typing stopped: " + why);
+                        } else {
+                            status.setText("Typed " + count + " key"
+                                    + (count == 1 ? "" : "s")
+                                    + (missed > 0 ? " \u00b7 " + missed + " skipped" : "")
+                                    + ".");
+                        }
+                    });
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            irBusy.set(false);
+        }
     }
 
     private void showScannerDialog() {
@@ -1504,7 +1860,10 @@ public class MainActivity extends Activity {
         candidates.clear();
         Map<String, Candidate> unique = new LinkedHashMap<>();
         if (allBrands.isChecked()) {
-            for (Brand b : brands) {
+            List<Brand> sorted = new ArrayList<>(brands);
+            sorted.sort((a, b) -> prettyBrand(a.name).compareToIgnoreCase(prettyBrand(b.name)));
+            for (Brand b : sorted) {
+                if (!brandInRange(b.name)) continue;
                 for (Remote r : b.remotes) addCandidate(r, unique);
             }
         } else {
@@ -1514,7 +1873,10 @@ public class MainActivity extends Activity {
         }
         candidates.addAll(unique.values());
         if (candidates.isEmpty()) {
-            status.setText("No codes available.");
+            status.setText(allBrands.isChecked()
+                    ? "No power codes for brands " + rangeFrom() + "\u2013" + rangeTo()
+                            + " in this device type."
+                    : "No codes available.");
             return;
         }
         if (allBrands.isChecked()) {
@@ -1596,14 +1958,26 @@ public class MainActivity extends Activity {
         }
         Candidate c = candidates.get(nextCandidate);
         if (irBusy.get()) {
-            // A built-in emitter answers in milliseconds; a jack tone can take
-            // seconds. Wait it out instead of burning a code it never saw.
-            handler.postDelayed(this::tickAutoFind, 120);
+            // A manual tap or the previous frame is still on the wire. Retry
+            // quickly instead of burning a code the emitter never sent.
+            handler.postDelayed(this::tickAutoFind, 25);
+            return;
+        }
+        final long sendStartedAt = SystemClock.elapsedRealtime();
+        boolean started = transmit(c.code, "Air Conditioner".equals(current.category)
+                && DeviceStore.acPowerRepeat(this), () -> {
+                    if (!running || scanPaused) return;
+                    long elapsed = SystemClock.elapsedRealtime() - sendStartedAt;
+                    int floor = emitterState() == EMITTER_JACK ? 120 : 60;
+                    int wait = Math.max(floor, scanDelayMs - (int) elapsed);
+                    handler.postDelayed(this::tickAutoFind, wait);
+                });
+        if (!started) {
+            // The emitter was busy; leave this candidate unspent and retry.
+            handler.postDelayed(this::tickAutoFind, 25);
             return;
         }
         nextCandidate++;
-        transmit(c.code, "Air Conditioner".equals(current.category)
-                && DeviceStore.acPowerRepeat(this));
         if (scannerDialog != null && scannerDialog.getWindow() != null) {
             scannerDialog.getWindow().getDecorView()
                     .performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
@@ -1613,7 +1987,6 @@ public class MainActivity extends Activity {
         scanName.setText(prettyBrand(c.remote.brand) + " \u2014 " + pretty(c.remote.name)
                 + (c.remote.unverified ? "  \u00b7 untested source" : ""));
         recordScanHistory(c);
-        handler.postDelayed(this::tickAutoFind, scanDelayMs);
     }
 
     private void rewindOne() {
@@ -1738,6 +2111,13 @@ public class MainActivity extends Activity {
             }
         }
 
+        Button typeButton = styledButton("\u2328  Type to TV", BTN, 15);
+        typeButton.setOnClickListener(v -> showTypeDialog());
+        LinearLayout.LayoutParams typeLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(54));
+        typeLp.topMargin = dp(10);
+        controlsCard.addView(typeButton, typeLp);
+
         List<Page> pages = buildPages();
         pageCount = pages.size();
         if (pageCount == 0) {
@@ -1846,6 +2226,12 @@ public class MainActivity extends Activity {
         }
         addPage(pages, "COLORS", colors);
 
+        List<String> keyboard = new ArrayList<>();
+        for (String key : KEYBOARD_KEYS) {
+            if (current.buttons.containsKey(key) && used.add(key)) keyboard.add(key);
+        }
+        addPage(pages, "KEYBOARD", keyboard);
+
         List<String> extras = new ArrayList<>();
         for (String key : BUTTON_ORDER) {
             // Both power buttons live in the header; a second copy in EXTRAS is clutter.
@@ -1916,16 +2302,54 @@ public class MainActivity extends Activity {
         } else {
             rest.addAll(page.keys);
         }
-        addGrid(parent, rest);
+        if (page.title.startsWith("COLORS") && !rest.isEmpty()) {
+            addFlexRow(parent, rest);
+        } else {
+            addGrid(parent, rest);
+        }
     }
 
+    /**
+     * Rows of at most three, but a known pair never gets split across two rows
+     * just because a third button happened to fit.
+     */
     private void addGrid(LinearLayout parent, List<String> keys) {
-        for (int i = 0; i < keys.size(); i += 3) {
-            String a = keys.get(i);
-            String b = i + 1 < keys.size() ? keys.get(i + 1) : null;
-            String c = i + 2 < keys.size() ? keys.get(i + 2) : null;
-            addRow(parent, a, b, c);
+        int i = 0;
+        while (i < keys.size()) {
+            int count = Math.min(3, keys.size() - i);
+            if (count == 3 && i + 3 < keys.size()
+                    && isPair(keys.get(i + 2), keys.get(i + 3))) {
+                count = 2;
+            }
+            addFlexRow(parent, keys.subList(i, i + count));
+            i += count;
         }
+    }
+
+    private static boolean isPair(String a, String b) {
+        for (String[] pair : PAIRS) {
+            if (pair[0].equals(a) && pair[1].equals(b)) return true;
+        }
+        return false;
+    }
+
+    /** Two buttons share the width instead of each taking a third and leaving a gap. */
+    private void addFlexRow(LinearLayout parent, List<String> keys) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (String key : keys) {
+            Button b = styledButton(labelFor(key), BTN, 15);
+            if (holdable(key)) {
+                attachRepeat(b, key);
+            } else {
+                b.setOnClickListener(v -> send(key));
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(54), 1f);
+            lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+            row.addView(b, lp);
+            buttons.put(key, b);
+        }
+        parent.addView(row);
     }
 
     private boolean hasHoldable(List<Page> pages) {

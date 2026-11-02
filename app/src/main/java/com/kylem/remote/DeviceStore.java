@@ -176,7 +176,23 @@ public final class DeviceStore {
     }
 
     public static int scanDelayMs(Context c) {
-        return prefs(c).getInt("scanDelay", 2000);
+        return prefs(c).getInt("scanDelay", 200);
+    }
+
+    public static String scanFrom(Context c) {
+        return prefs(c).getString("scanFrom", "A");
+    }
+
+    public static void setScanFrom(Context c, String value) {
+        prefs(c).edit().putString("scanFrom", value).apply();
+    }
+
+    public static String scanTo(Context c) {
+        return prefs(c).getString("scanTo", "Z");
+    }
+
+    public static void setScanTo(Context c, String value) {
+        prefs(c).edit().putString("scanTo", value).apply();
     }
 
     public static void setScanDelayMs(Context c, int value) {

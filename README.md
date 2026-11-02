@@ -49,11 +49,20 @@ this repository's Releases.
 - TVs, ACs, projectors, fans, LED lights, soundbars, audio receivers, streaming
   and cable boxes, DVD/Blu-ray players, cameras, air purifiers, and more.
 - Device-specific buttons on swipeable pages: Basics, Navigation, Media, Numbers,
-  Colors and Extras. Power stays pinned above the pages.
+  Colors, a Keyboard page when the profile has letter keys, and Extras. Basics
+  are ordered per device type, pairs such as
+  volume and channel stay side by side, the D-pad keeps its cross layout, numbers
+  form a 3×4 pad, colours sit in one row, and two-button rows fill the width.
+  Power stays pinned above the pages.
 - **One tap sends exactly one code.** Volume, channel, temperature and everything
   else fire once, the way a press on the original remote does.
 - **Hold any button to keep sending it** — release stops. Power is the exception:
   holding a toggle would strobe the device on and off, so it stays one press.
+- **Type to the device.** A **Type to TV** button opens the phone keyboard and sends
+  each character as one IR key press — digits, dash and dot on a normal media
+  remote, plus letters on any profile that carries letter keys. TVs type letters
+  through their on-screen keyboard; IR has no universal text protocol, so the panel
+  says which characters this profile can actually send and skips the rest.
 - **Type to search brands and models** on the *Find a working code* card. One field
   filters every profile in the category, so `HWE08` or `AS18` finds the aircon
   without scrolling a spinner.
@@ -64,10 +73,12 @@ this repository's Releases.
   interface never displayed.
 - Searchable brands; scanner with **Last 5** history, Previous/Pause/Stop, and a
   confirmation before an all-brand scan.
-- **Scan speed down to 0.5 s** per code — the **Speed** row on the *Find a working code*
-  card, 4× faster than the old 2 s default. A built-in blaster keeps up; on the jack
-  blaster a long code still finishes its tone before the next one starts, so fast
-  scanning never drops a signal.
+- **Scan speed down to 0.2 s** per code — the **Speed** row on the *Find a working
+  code* card, 10× faster than the old 2 s default and 2.5× faster than 1.6.3. The
+  scanner now starts the next code when the previous frame has actually finished,
+  not on a blind timer, so fast scanning never truncates a code. A **Range** row
+  limits an all-brand scan to brand initials, e.g. **F–R**, so you can skip the
+  brands you have already ruled out.
 - **Honest provenance.** Codes that come from community dumps rather than this app's
   own bench runs are labelled **untested source** in the scanner and in the About
   panel. Nothing is claimed to work that has not been seen to work.

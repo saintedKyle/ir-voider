@@ -182,6 +182,10 @@ public class ConfigsActivity extends Activity {
         LinearLayout devicesCard = card();
         devicesCard.addView(text("YOUR DEVICES", 11, ACCENT, true));
         List<DeviceStore.Device> devices = DeviceStore.devices(this);
+        devices.sort((a, b) -> {
+            int byType = a.type.compareToIgnoreCase(b.type);
+            return byType != 0 ? byType : a.name.compareToIgnoreCase(b.name);
+        });
         if (devices.isEmpty()) {
             TextView empty = text("No saved devices yet. Pick a working remote, "
                     + "then add it below.", 13, MUTED, false);
