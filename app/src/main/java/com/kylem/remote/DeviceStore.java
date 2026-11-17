@@ -30,6 +30,41 @@ public final class DeviceStore {
         public int hash;
     }
 
+    /** One press inside a macro, plus the pause that follows it. */
+    public static class MacroStep {
+        public String key;
+        public int delayMs;
+
+        public MacroStep(String key, int delayMs) {
+            this.key = key;
+            this.delayMs = delayMs;
+        }
+    }
+
+    /**
+     * A named sequence. {@code loop} is 0 for once, -1 for forever, or the
+     * number of passes. 1.6.5 wrote macros without the field, so 0 is the
+     * only safe default when reading old data.
+     */
+    public static class Macro {
+        public String id;
+        public String name;
+        public int loop;
+        public final List<MacroStep> steps = new ArrayList<>();
+
+        public Macro(String id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    /** Per-device timing that the Signal Lab proved on the real unit. */
+    public static class Calibration {
+        public int freq;
+        public int repeats;
+        public int gapMs;
+    }
+
     private DeviceStore() {
     }
 
@@ -205,5 +240,230 @@ public final class DeviceStore {
 
     public static void setThemeIndex(Context c, int value) {
         prefs(c).edit().putInt("theme", value).apply();
+    }
+
+    // --------------------------------------------------------------- macros
+
+    /** The identity 1.6.5 writes to prefs, kept byte-identical for upgrades. */
+    public static String macroDeviceKey(String category, String brand,
+                                        String remote, int hash) {
+        return category + "\u0001" + brand + "\u0001" + remote + "\u0001" + hash;
+    }
+
+    public static List<Macro> macros(Context c, String deviceKey) {
+        List<Macro> out = new ArrayList<>();
+        try {
+            JSONArray arr = new JSONArray(prefs(c).getString("macros", "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (!deviceKey.equals(o.optString("device"))) continue;
+                Macro m = new Macro(o.optString("id", UUID.randomUUID().toString()),
+                        o.optString("name", "Macro"));
+                m.loop = o.optInt("loop", 0);
+                JSONArray steps = o.optJSONArray("steps");
+                if (steps != null) {
+                    for (int s = 0; s < steps.length(); s++) {
+                        JSONObject so = steps.getJSONObject(s);
+                        m.steps.add(new MacroStep(so.optString("key"),
+                                Math.max(100, so.optInt("delay", 600))));
+                    }
+                }
+                out.add(m);
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
+    }
+
+    public static void saveMacros(Context c, String deviceKey, List<Macro> list) {
+        try {
+            JSONArray old = new JSONArray(prefs(c).getString("macros", "[]"));
+            JSONArray next = new JSONArray();
+            for (int i = 0; i < old.length(); i++) {
+                JSONObject o = old.getJSONObject(i);
+                if (!deviceKey.equals(o.optString("device"))) next.put(o);
+            }
+            for (Macro m : list) {
+                JSONObject o = new JSONObject();
+                o.put("device", deviceKey);
+                o.put("id", m.id);
+                o.put("name", m.name);
+                o.put("loop", m.loop);
+                JSONArray steps = new JSONArray();
+                for (MacroStep step : m.steps) {
+                    JSONObject so = new JSONObject();
+                    so.put("key", step.key);
+                    so.put("delay", step.delayMs);
+                    steps.put(so);
+                }
+                o.put("steps", steps);
+                next.put(o);
+            }
+            prefs(c).edit().putString("macros", next.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    // ---------------------------------------------------------- calibration
+
+    private static JSONObject jsonMap(Context c, String name) {
+        try {
+            return new JSONObject(prefs(c).getString(name, "{}"));
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    public static Calibration calibration(Context c, String deviceKey) {
+        JSONObject o = jsonMap(c, "calibrations").optJSONObject(deviceKey);
+        if (o == null) return null;
+        Calibration cal = new Calibration();
+        cal.freq = o.optInt("freq", 0);
+        cal.repeats = Math.max(1, Math.min(3, o.optInt("repeats", 1)));
+        cal.gapMs = Math.max(20, Math.min(2000, o.optInt("gap", 50)));
+        return cal;
+    }
+
+    public static void saveCalibration(Context c, String deviceKey, Calibration cal) {
+        try {
+            JSONObject all = jsonMap(c, "calibrations");
+            JSONObject o = new JSONObject();
+            o.put("freq", cal.freq);
+            o.put("repeats", cal.repeats);
+            o.put("gap", cal.gapMs);
+            all.put(deviceKey, o);
+            prefs(c).edit().putString("calibrations", all.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void clearCalibration(Context c, String deviceKey) {
+        try {
+            JSONObject all = jsonMap(c, "calibrations");
+            all.remove(deviceKey);
+            prefs(c).edit().putString("calibrations", all.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    // -------------------------------------------------------- aircon target
+
+    /** Last absolute target: {celsius, mode 0..4, fan 0..3}. */
+    public static int[] acState(Context c, String deviceKey,
+                                int defaultTemp, int defaultMode, int defaultFan) {
+        int temp = Math.max(17, Math.min(30, defaultTemp));
+        int mode = Math.max(0, Math.min(4, defaultMode));
+        int fan = Math.max(0, Math.min(3, defaultFan));
+        JSONObject o = jsonMap(c, "acStates").optJSONObject(deviceKey);
+        if (o != null) {
+            temp = Math.max(17, Math.min(30, o.optInt("temp", temp)));
+            mode = Math.max(0, Math.min(4, o.optInt("mode", mode)));
+            fan = Math.max(0, Math.min(3, o.optInt("fan", fan)));
+        }
+        return new int[]{temp, mode, fan};
+    }
+
+    public static void saveAcState(Context c, String deviceKey,
+                                   int temp, int mode, int fan) {
+        try {
+            JSONObject all = jsonMap(c, "acStates");
+            JSONObject o = new JSONObject();
+            o.put("temp", Math.max(17, Math.min(30, temp)));
+            o.put("mode", Math.max(0, Math.min(4, mode)));
+            o.put("fan", Math.max(0, Math.min(3, fan)));
+            all.put(deviceKey, o);
+            prefs(c).edit().putString("acStates", all.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    // -------------------------------------------------------- extra buttons
+
+    /** Buttons added from sibling remotes; stored as [freq, [pattern]]. */
+    public static JSONObject patches(Context c, String deviceKey) {
+        JSONObject all = jsonMap(c, "patches");
+        JSONObject o = all.optJSONObject(deviceKey);
+        return o == null ? new JSONObject() : o;
+    }
+
+    public static void savePatches(Context c, String deviceKey, JSONObject buttons) {
+        try {
+            JSONObject all = jsonMap(c, "patches");
+            if (buttons == null || buttons.length() == 0) all.remove(deviceKey);
+            else all.put(deviceKey, buttons);
+            prefs(c).edit().putString("patches", all.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void putPatch(Context c, String deviceKey, String button,
+                                int freq, int[] pattern) {
+        try {
+            JSONObject buttons = patches(c, deviceKey);
+            JSONArray arr = new JSONArray();
+            arr.put(freq);
+            JSONArray pat = new JSONArray();
+            for (int value : pattern) pat.put(value);
+            arr.put(pat);
+            buttons.put(button, arr);
+            savePatches(c, deviceKey, buttons);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void removePatch(Context c, String deviceKey, String button) {
+        try {
+            JSONObject buttons = patches(c, deviceKey);
+            buttons.remove(button);
+            savePatches(c, deviceKey, buttons);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void clearPatches(Context c, String deviceKey) {
+        savePatches(c, deviceKey, null);
+    }
+
+    /** Extra frames for a Power Doctor winner. Stored beside the button patch. */
+    public static int powerOffRepeats(Context c, String deviceKey) {
+        return Math.max(1, Math.min(3,
+                patches(c, deviceKey).optInt("__powerOffRepeats", 1)));
+    }
+
+    public static void setPowerOffRepeats(Context c, String deviceKey, int value) {
+        try {
+            JSONObject buttons = patches(c, deviceKey);
+            buttons.put("__powerOffRepeats", Math.max(1, Math.min(3, value)));
+            savePatches(c, deviceKey, buttons);
+        } catch (Exception ignored) {
+        }
+    }
+
+    // ------------------------------------------------------------ shortcuts
+
+    public static String webUrl(Context c) {
+        return prefs(c).getString("webUrl", "https://www.youtube.com");
+    }
+
+    public static void setWebUrl(Context c, String url) {
+        prefs(c).edit().putString("webUrl", url).apply();
+    }
+
+    // ---------------------------------------------------------- test storm
+
+    public static int stormDelayMs(Context c) {
+        return Math.max(120, Math.min(2000, prefs(c).getInt("stormDelay", 350)));
+    }
+
+    public static void setStormDelayMs(Context c, int value) {
+        prefs(c).edit().putInt("stormDelay", Math.max(120, Math.min(2000, value))).apply();
+    }
+
+    public static boolean stormIncludePower(Context c) {
+        return prefs(c).getBoolean("stormPower", false);
+    }
+
+    public static void setStormIncludePower(Context c, boolean value) {
+        prefs(c).edit().putBoolean("stormPower", value).apply();
     }
 }

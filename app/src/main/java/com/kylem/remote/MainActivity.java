@@ -11,9 +11,11 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Insets;
@@ -65,9 +67,16 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -95,6 +104,7 @@ public class MainActivity extends Activity {
         ON_ACCENT = palette.onAccent;
         RIPPLE = palette.ripple();
         ACTIVE = Surface.blend(CARD, ACCENT, 0.10f);
+        brandAccent = ACCENT;
     }
 
     private static final String[] BUTTON_ORDER = {
@@ -105,6 +115,7 @@ public class MainActivity extends Activity {
             "speed", "light", "timer", "sleep", "brightness_up", "brightness_down",
             "color", "red", "green", "yellow", "blue", "zoom_in", "zoom_out",
             "subtitle", "audio", "aspect", "last", "fav", "apps", "netflix",
+            "youtube", "prime", "disney", "hbo", "spotify", "browser", "copilot", "web",
             "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
             "num_8", "num_9", "dash", "dot",
             "letter_a", "letter_b", "letter_c", "letter_d", "letter_e", "letter_f", "letter_g", "letter_h", "letter_i", "letter_j", "letter_k", "letter_l", "letter_m",
@@ -118,7 +129,10 @@ public class MainActivity extends Activity {
             "Prev", "Next", "Record", "Temp +", "Temp −", "Mode", "Fan", "Swing",
             "Speed", "Light", "Timer", "Sleep", "Bright +", "Bright −", "Color",
             "Red", "Green", "Yellow", "Blue", "Zoom +", "Zoom −", "Subtitle",
-            "Audio", "Aspect", "Last", "Fav", "Apps", "Netflix", "0", "1", "2", "3",
+            "Audio", "Aspect", "Last", "Fav", "Apps", "Netflix",
+            "YouTube", "Prime Video", "Disney+", "HBO Max", "Spotify", "Browser",
+            "Copilot", "Web",
+            "0", "1", "2", "3",
             "4", "5", "6", "7", "8", "9", "Dash", "Dot",
             "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
             "Space", "Backspace", "Enter"
@@ -142,11 +156,12 @@ public class MainActivity extends Activity {
     private static final String[] BASIC_KEYS = {"vol_up", "vol_down", "mute", "ch_up", "ch_down", "input"};
     private static final String[] NAV_EXTRA = {"back", "home", "menu", "exit", "info", "guide"};
     private static final String[] MEDIA_KEYS = {"play_pause", "stop", "rewind", "forward",
-            "prev", "next", "record", "subtitle", "audio", "aspect", "last", "fav",
-            "apps", "netflix"};
+            "prev", "next", "record", "subtitle", "audio", "aspect", "last", "fav"};
     private static final String[] NUMBER_KEYS = {"num_1", "num_2", "num_3", "num_4",
             "num_5", "num_6", "num_7", "num_8", "num_9", "num_0", "dash", "dot"};
     private static final String[] COLOR_KEYS = {"red", "green", "yellow", "blue"};
+    private static final String[] APP_KEYS = {"netflix", "youtube", "prime", "disney",
+            "hbo", "spotify", "apps", "browser"};
     private static final int REQ_LEARN = 77;
 
     static class Code {
@@ -240,6 +255,15 @@ public class MainActivity extends Activity {
     private boolean updateChecked;
     private BroadcastReceiver jackPlug;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
+
+    private LinearLayout macroContent;
+    private Dialog macroDialog;
+    private final AtomicBoolean macroCancelled = new AtomicBoolean(false);
+    private final AtomicBoolean stormCancelled = new AtomicBoolean(false);
+    private Dialog stormDialog;
+    private int brandAccent = 0;
+    private final Random stormRandom = new Random();
+
     private final Runnable timerTick = new Runnable() {
         @Override
         public void run() {
@@ -365,18 +389,26 @@ public class MainActivity extends Activity {
                     remote.name = ro.getString("name");
                     remote.unverified = ro.optInt("src", 0) != 0;
                     JSONObject btns = ro.getJSONObject("buttons");
-                    for (int b = 0; b < BUTTON_ORDER.length; b++) {
-                        String key = BUTTON_ORDER[b];
-                        if (!btns.has(key)) continue;
-                        JSONArray arr = btns.getJSONArray(key);
-                        Code code = new Code();
-                        code.freq = arr.getInt(0);
-                        JSONArray pat = arr.getJSONArray(1);
-                        code.pattern = new int[pat.length()];
-                        for (int p = 0; p < pat.length(); p++) code.pattern[p] = pat.getInt(p);
-                        remote.buttons.put(key, code);
+                    // 1.7 lists every key the profile carries. The old fixed
+                    // BUTTON_ORDER silently dropped anything added later, which
+                    // is exactly how useful buttons went missing.
+                    Iterator<String> keys = btns.keys();
+                    while (keys.hasNext()) {
+                        String key = keys.next();
+                        try {
+                            JSONArray arr = btns.getJSONArray(key);
+                            Code code = new Code();
+                            code.freq = arr.getInt(0);
+                            JSONArray pat = arr.getJSONArray(1);
+                            code.pattern = new int[pat.length()];
+                            for (int p = 0; p < pat.length(); p++) {
+                                code.pattern[p] = pat.getInt(p);
+                            }
+                            remote.buttons.put(key, code);
+                        } catch (Exception ignored) {
+                        }
                     }
-                    if (!remote.buttons.containsKey("power")) continue;
+                    if (remote.buttons.isEmpty()) continue;
                     brand.remotes.add(remote);
                 }
                 if (!brand.remotes.isEmpty()) cat.brands.add(brand);
@@ -504,6 +536,10 @@ public class MainActivity extends Activity {
     }
 
     private Button highlightButton(String label, float textSize) {
+        return highlightButton(label, textSize, ACCENT);
+    }
+
+    private Button highlightButton(String label, float textSize, int accent) {
         Button b = new Button(this);
         b.setText(label);
         b.setAllCaps(false);
@@ -511,8 +547,8 @@ public class MainActivity extends Activity {
         b.setTextColor(ON_ACCENT);
         b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         b.setStateListAnimator(null);
-        Drawable plate = Surface.raised(this, 22, ACCENT,
-                Surface.darken(ACCENT, 0.42f), palette.gloss(0.24f));
+        Drawable plate = Surface.raised(this, 22, accent,
+                Surface.darken(accent, 0.42f), palette.gloss(0.24f));
         b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33000000), plate, null));
         b.setPadding(dp(8), dp(8), dp(8), dp(8));
         Surface.elevate(b, 22, 5);
@@ -922,7 +958,66 @@ public class MainActivity extends Activity {
         for (int i = 0; i < BUTTON_ORDER.length; i++) {
             if (BUTTON_ORDER[i].equals(key)) return BUTTON_LABELS[i];
         }
-        return key;
+        if (key != null && key.startsWith("ac_temp_")) {
+            return key.substring(8) + "\u00b0C";
+        }
+        if (key != null && key.startsWith("ac_mode_")) {
+            return "Mode " + acWord(key.substring(8));
+        }
+        if (key != null && key.startsWith("ac_fan_")) {
+            return "Fan " + acWord(key.substring(7));
+        }
+        String pretty = key == null ? "" : key.replace('_', ' ').trim();
+        if (pretty.isEmpty()) return "";
+        return Character.toUpperCase(pretty.charAt(0)) + pretty.substring(1);
+    }
+
+    private String acWord(String value) {
+        if ("med".equals(value)) return "Medium";
+        if (value == null || value.isEmpty()) return "";
+        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
+    }
+
+    /**
+     * A brand tint for the plates that already carry the theme accent. It is
+     * mixed with the active theme, so contrast stays inside the palette.
+     */
+    private int brandAccentFor(String brand) {
+        int raw = brandColor(brand);
+        return raw == 0 ? ACCENT : Surface.blend(ACCENT, raw, 0.42f);
+    }
+
+    private int brandColor(String brand) {
+        if (brand == null) return 0;
+        String b = brand.toLowerCase(Locale.US);
+        if (b.startsWith("lg")) return 0xFFA50034;
+        if (b.startsWith("tcl")) return 0xFFE2231A;
+        if (b.startsWith("samsung")) return 0xFF1428A0;
+        if (b.startsWith("sony")) return 0xFF0084C6;
+        if (b.startsWith("panasonic")) return 0xFF0B4EA2;
+        if (b.startsWith("philips")) return 0xFF0B5ED7;
+        if (b.startsWith("hisense")) return 0xFF00A651;
+        if (b.startsWith("sharp")) return 0xFFE60012;
+        if (b.startsWith("toshiba")) return 0xFFE60012;
+        if (b.startsWith("jvc")) return 0xFFE60012;
+        if (b.startsWith("vizio")) return 0xFFE60012;
+        if (b.startsWith("xiaomi") || b.startsWith("mi ")) return 0xFFFF6900;
+        if (b.startsWith("huawei")) return 0xFFE60012;
+        if (b.startsWith("roku")) return 0xFF6F1AB1;
+        if (b.startsWith("google")) return 0xFF4285F4;
+        if (b.startsWith("amazon")) return 0xFFFF9900;
+        if (b.startsWith("apple")) return 0xFF8E8E93;
+        if (b.startsWith("haier")) return 0xFF1B5FAA;
+        if (b.startsWith("airmax") || b.startsWith("air max")) return 0xFF00A0E9;
+        if (b.startsWith("midea")) return 0xFF00A3E0;
+        if (b.startsWith("carrier")) return 0xFF0072CE;
+        if (b.startsWith("daikin")) return 0xFF0096D6;
+        if (b.startsWith("gree")) return 0xFFF39800;
+        if (b.startsWith("nokia")) return 0xFF124191;
+        if (b.startsWith("motorola")) return 0xFF5C2D91;
+        if (b.startsWith("bose")) return 0xFFB08D57;
+        if (b.startsWith("learned")) return GREEN;
+        return 0;
     }
 
     // ------------------------------------------------------------- selection
@@ -1004,6 +1099,8 @@ public class MainActivity extends Activity {
             brandSpinner.setSelection(bi);
             setRemoteAdapter(brands.get(bi), r);
         }
+        installAcSet(r);
+        applyPatches(r);
         current = r;
         renderControls();
         updateDeviceLabels();
@@ -1019,6 +1116,8 @@ public class MainActivity extends Activity {
     }
 
     private void selectRemote(Remote r) {
+        installAcSet(r);
+        applyPatches(r);
         current = r;
         renderControls();
         updateDeviceLabels();
@@ -1040,6 +1139,159 @@ public class MainActivity extends Activity {
         Code power = r.buttons.get("power");
         DeviceStore.rememberSelection(this, r.category, r.brand, r.name,
                 power == null ? 0 : Arrays.hashCode(power.pattern));
+    }
+
+    private String macroKeyFor(Remote r) {
+        if (r == null) return "";
+        Code power = r.buttons.get("power");
+        return DeviceStore.macroDeviceKey(r.category, r.brand, r.name,
+                power == null ? 0 : Arrays.hashCode(power.pattern));
+    }
+
+    private String macroKey() {
+        return current == null ? "" : macroKeyFor(current);
+    }
+
+    /** Merge buttons added from sibling profiles into the live remote. */
+    private void applyPatches(Remote r) {
+        if (r == null) return;
+        JSONObject patch = DeviceStore.patches(this, macroKeyFor(r));
+        Iterator<String> keys = patch.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.startsWith("__")) continue;
+            try {
+                JSONArray arr = patch.getJSONArray(key);
+                Code code = new Code();
+                code.freq = arr.getInt(0);
+                JSONArray pat = arr.getJSONArray(1);
+                code.pattern = new int[pat.length()];
+                for (int i = 0; i < pat.length(); i++) code.pattern[i] = pat.getInt(i);
+                r.buttons.put(key, code);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    /**
+     * AirMax and Beko only shipped a 17 °C cool frame plus Off. Both are R05D,
+     * which carries mode and temperature in every full-state frame, so build
+     * the missing values from that same capture. Each key is a real frame, so
+     * macros and Test Storm can use it too.
+     */
+    private void installAcSet(Remote r) {
+        if (r == null) return;
+        Code power = r.buttons.get("power");
+        if (!R05D.supported(power)) return;
+        int[] state = DeviceStore.acState(this, macroKeyFor(r),
+                R05D.celsiusFromIndex(R05D.tempIndex(power)),
+                acModeIndex(R05D.modeBits(power)),
+                acFanIndex(R05D.fanBits(power)));
+        int temp = state[0];
+        int mode = state[1];
+        int fan = state[2];
+        for (int celsius = 17; celsius <= 30; celsius++) {
+            Code code = R05D.state(power, acFanBitsForMode(mode, fan),
+                    R05D.tempIndex(celsius), acModeBits(mode), mode == 2);
+            if (code != null) r.buttons.put("ac_temp_" + celsius, code);
+        }
+        r.buttons.put("ac_mode_cool", R05D.state(power, acFanBitsForMode(0, fan),
+                R05D.tempIndex(temp), acModeBits(0), false));
+        r.buttons.put("ac_mode_dry", R05D.state(power, acFanBitsForMode(1, fan),
+                R05D.tempIndex(temp), acModeBits(1), false));
+        r.buttons.put("ac_mode_fan", R05D.state(power, acFanBitsForMode(2, fan),
+                R05D.tempIndex(temp), acModeBits(2), true));
+        r.buttons.put("ac_mode_heat", R05D.state(power, acFanBitsForMode(3, fan),
+                R05D.tempIndex(temp), acModeBits(3), false));
+        r.buttons.put("ac_mode_auto", R05D.state(power, acFanBitsForMode(4, fan),
+                R05D.tempIndex(temp), acModeBits(4), false));
+        for (int i = 0; i < 4; i++) {
+            String[] names = {"ac_fan_auto", "ac_fan_low", "ac_fan_med", "ac_fan_high"};
+            r.buttons.put(names[i], R05D.state(power, acFanBitsForMode(mode, i),
+                    R05D.tempIndex(temp), acModeBits(mode), mode == 2));
+        }
+    }
+
+    private int acModeIndex(int bits) {
+        if (bits == 1) return 1;
+        if (bits == 2) return 4;
+        if (bits == 3) return 3;
+        return 0;
+    }
+
+    private int acModeBits(int index) {
+        if (index == 1) return 1;
+        if (index == 2) return 1;
+        if (index == 3) return 3;
+        if (index == 4) return 2;
+        return 0;
+    }
+
+    private int acFanIndex(int bits) {
+        if (bits == 5) return 0;
+        if (bits == 4) return 1;
+        if (bits == 2) return 2;
+        if (bits == 1) return 3;
+        return 0;
+    }
+
+    private int acFanBits(int index) {
+        if (index == 0) return 5;
+        if (index == 2) return 2;
+        if (index == 3) return 1;
+        return 4;
+    }
+
+    /** R05D fixes the fan in dry and auto mode; honour that in generated frames. */
+    private int acFanBitsForMode(int mode, int fan) {
+        if (mode == 1 || mode == 4) return 0;
+        return acFanBits(fan);
+    }
+
+    /**
+     * Build one absolute R05D frame from the last target this app sent, then
+     * apply the tapped key. That keeps "24 °C, then Fan High" at 24 °C instead
+     * of snapping back to the temperature inside the original capture.
+     */
+    private Code acStateCode(String key, Remote remote) {
+        if (remote == null || key == null || !key.startsWith("ac_")) return null;
+        Code power = remote.buttons.get("power");
+        if (!R05D.supported(power)) return null;
+        int[] state = DeviceStore.acState(this, macroKeyFor(remote),
+                R05D.celsiusFromIndex(R05D.tempIndex(power)),
+                acModeIndex(R05D.modeBits(power)),
+                acFanIndex(R05D.fanBits(power)));
+        int temp = state[0];
+        int mode = state[1];
+        int fan = state[2];
+        if (key.startsWith("ac_temp_")) {
+            try {
+                temp = Integer.parseInt(key.substring(8));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+            if (R05D.tempIndex(temp) < 0) return null;
+        } else if (key.startsWith("ac_mode_")) {
+            String value = key.substring(8);
+            if ("cool".equals(value)) mode = 0;
+            else if ("dry".equals(value)) mode = 1;
+            else if ("fan".equals(value)) mode = 2;
+            else if ("heat".equals(value)) mode = 3;
+            else if ("auto".equals(value)) mode = 4;
+            else return null;
+        } else if (key.startsWith("ac_fan_")) {
+            String value = key.substring(7);
+            if ("auto".equals(value)) fan = 0;
+            else if ("low".equals(value)) fan = 1;
+            else if ("med".equals(value)) fan = 2;
+            else if ("high".equals(value)) fan = 3;
+            else return null;
+        } else {
+            return null;
+        }
+        DeviceStore.saveAcState(this, macroKeyFor(remote), temp, mode, fan);
+        return R05D.state(power, acFanBitsForMode(mode, fan),
+                R05D.tempIndex(temp), acModeBits(mode), mode == 2);
     }
 
     private void updateDeviceLabels() {
@@ -1317,7 +1569,8 @@ public class MainActivity extends Activity {
             status.setText("Pick a device remote first.");
             return;
         }
-        Code code = current.buttons.get(key);
+        Code code = key.startsWith("ac_") ? acStateCode(key, current)
+                : current.buttons.get(key);
         if (code == null) {
             status.setText("This remote has no \u201c" + labelFor(key) + "\u201d code.");
             return;
@@ -1327,8 +1580,36 @@ public class MainActivity extends Activity {
                 ? "Air Conditioner".equals(current.category)
                         && DeviceStore.acPowerRepeat(this)
                 : DeviceStore.boostAll(this);
-        transmit(code, repeat);
-        status.setText("Sent " + labelFor(key) + ".");
+        // A Signal Lab calibration is an explicit choice, so its frame count is
+        // honoured on ordinary taps too. Power stays single unless asked for x2,
+        // otherwise a repeat would toggle the device straight back.
+        if (!isPower && DeviceStore.calibration(this, macroKey()) != null) {
+            repeat = true;
+        }
+        if ("power_off".equals(key)) {
+            int fixed = DeviceStore.powerOffRepeats(this, macroKey());
+            if (fixed > 1) transmit(code, fixed);
+            else transmit(code, repeat);
+        } else {
+            transmit(code, repeat);
+        }
+        status.setText(key.startsWith("ac_")
+                ? "Sent " + labelFor(key) + " \u00b7 target " + acTargetLabel() + "."
+                : "Sent " + labelFor(key) + ".");
+    }
+
+    private String acTargetLabel() {
+        if (current == null) return "";
+        Code power = current.buttons.get("power");
+        if (!R05D.supported(power)) return "";
+        int[] state = DeviceStore.acState(this, macroKeyFor(current),
+                R05D.celsiusFromIndex(R05D.tempIndex(power)),
+                acModeIndex(R05D.modeBits(power)),
+                acFanIndex(R05D.fanBits(power)));
+        String[] modes = {"Cool", "Dry", "Fan", "Heat", "Auto"};
+        String[] fans = {"Auto", "Low", "Medium", "High"};
+        return state[0] + "\u00b0C \u00b7 " + modes[state[1]] + " \u00b7 Fan "
+                + fans[state[2]];
     }
 
     private static final int EMITTER_NONE = 0;
@@ -1385,6 +1666,60 @@ public class MainActivity extends Activity {
         return current != null && "Air Conditioner".equals(current.category) ? 300 : 50;
     }
 
+    /** Snap a requested carrier to a range the phone says it can emit. */
+    private int carrierFor(int freq) {
+        if (ir == null) return freq;
+        try {
+            ConsumerIrManager.CarrierFrequencyRange[] ranges = ir.getCarrierFrequencies();
+            if (ranges == null || ranges.length == 0) return freq;
+            int best = freq;
+            int bestDistance = Integer.MAX_VALUE;
+            for (ConsumerIrManager.CarrierFrequencyRange range : ranges) {
+                if (freq >= range.getMinFrequency() && freq <= range.getMaxFrequency()) {
+                    return freq;
+                }
+                int cand = Math.max(range.getMinFrequency(),
+                        Math.min(range.getMaxFrequency(), freq));
+                int distance = Math.abs(cand - freq);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = cand;
+                }
+            }
+            return best;
+        } catch (Exception e) {
+            return freq;
+        }
+    }
+
+    /** One or more frames on the IR thread, for macro and Test Storm loops. */
+    private void sendCodeBlocking(Code code, boolean jack, String deviceKey,
+                                  int repeats) throws Exception {
+        DeviceStore.Calibration cal = DeviceStore.calibration(this, deviceKey);
+        int freq = cal != null && cal.freq > 0 ? cal.freq : code.freq;
+        int gap = cal != null ? cal.gapMs : frameGapMs();
+        int count = Math.max(1, Math.min(3, repeats));
+        for (int i = 0; i < count; i++) {
+            if (jack) {
+                JackBlaster.Result sent = JackBlaster.send(this, code);
+                if (!sent.ok) throw new Exception(sent.detail);
+            } else {
+                ir.transmit(carrierFor(freq), code.pattern);
+            }
+            if (i + 1 < count) Thread.sleep(gap);
+        }
+    }
+
+    /** Sleep in slices so a stop button lands within 50 ms. */
+    private void sleepWhile(int ms, AtomicBoolean cancelled) throws InterruptedException {
+        int left = Math.max(0, ms);
+        while (left > 0 && !cancelled.get()) {
+            int slice = Math.min(50, left);
+            Thread.sleep(slice);
+            left -= slice;
+        }
+    }
+
     private void transmit(Code code, boolean allowRepeat) {
         transmit(code, allowRepeat, null);
     }
@@ -1392,6 +1727,8 @@ public class MainActivity extends Activity {
     private boolean transmit(Code code, boolean allowRepeat, Runnable onDone) {
         int repeats = DeviceStore.repeats(this);
         if (allowRepeat && DeviceStore.forceMode(this)) repeats = Math.max(3, repeats);
+        DeviceStore.Calibration cal = DeviceStore.calibration(this, macroKey());
+        if (cal != null) repeats = allowRepeat ? cal.repeats : 1;
         return transmit(code, allowRepeat ? repeats : 1, onDone);
     }
 
@@ -1414,7 +1751,9 @@ public class MainActivity extends Activity {
         if (irExecutor.isShutdown()) return false;
         if (!irBusy.compareAndSet(false, true)) return false;
         final int count = Math.max(1, Math.min(3, repeats));
-        final int gapMs = frameGapMs();
+        DeviceStore.Calibration cal = DeviceStore.calibration(this, macroKey());
+        final int gapMs = cal != null ? cal.gapMs : frameGapMs();
+        final int sendFreq = carrierFor(cal != null && cal.freq > 0 ? cal.freq : code.freq);
         try {
             irExecutor.execute(() -> {
             String failure = null;
@@ -1427,7 +1766,7 @@ public class MainActivity extends Activity {
                             break;
                         }
                     } else {
-                        ir.transmit(code.freq, code.pattern);
+                        ir.transmit(sendFreq, code.pattern);
                     }
                     if (i + 1 < count) Thread.sleep(gapMs);
                 }
@@ -2066,16 +2405,42 @@ public class MainActivity extends Activity {
             controlsCard.addView(text("Select a remote to begin.", 13, MUTED, false));
             return;
         }
-        TextView controlsLabel = text("CONTROLS", 10, MUTED, true);
+        brandAccent = brandAccentFor(current.brand);
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView controlsLabel = text("CONTROLS", 10, brandAccent, true);
         controlsLabel.setLetterSpacing(0.14f);
-        controlsCard.addView(controlsLabel);
+        head.addView(controlsLabel, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button macrosButton = styledButton("MACROS", BTN, 11);
+        macrosButton.setContentDescription("Macros for this remote");
+        macrosButton.setOnClickListener(v -> showMacroPage());
+        LinearLayout.LayoutParams mb = new LinearLayout.LayoutParams(dp(70), dp(34));
+        mb.setMargins(0, 0, dp(6), 0);
+        head.addView(macrosButton, mb);
+
+        Button stormButton = styledButton("TEST", BTN, 11);
+        stormButton.setContentDescription("Test Storm");
+        stormButton.setOnClickListener(v -> showStormDialog());
+        head.addView(stormButton, new LinearLayout.LayoutParams(dp(54), dp(34)));
+        controlsCard.addView(head);
+
+        View brandBar = new View(this);
+        brandBar.setBackground(pill(brandAccent, Surface.darken(brandAccent, 0.30f)));
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(dp(46), dp(3));
+        barLp.topMargin = dp(7);
+        controlsCard.addView(brandBar, barLp);
 
         if (current.buttons.containsKey("power")) {
             boolean hasOff = current.buttons.containsKey("power_off");
             boolean aircon = "Air Conditioner".equals(current.category);
             // Aircon captures pair `power` with `power_off` as the two directions; a TV
             // usually pairs a toggle with standby, so only the AC gets the ON label.
-            Button power = highlightButton(hasOff && aircon ? "POWER ON" : "POWER", 20);
+            Button power = highlightButton(hasOff && aircon ? "POWER ON" : "POWER",
+                    20, brandAccent);
             power.setOnClickListener(v -> send("power"));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
@@ -2093,7 +2458,7 @@ public class MainActivity extends Activity {
                 controlsCard.addView(powerOff, po);
                 buttons.put("power_off", powerOff);
             }
-            if ("Air Conditioner".equals(current.category)) {
+            if (aircon) {
                 Button power2 = styledButton("POWER ×2", BTN, 14);
                 power2.setOnClickListener(v -> sendPowerRepeat());
                 LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(
@@ -2108,7 +2473,57 @@ public class MainActivity extends Activity {
                         : "Power is one toggle code here. If the unit ignores a single "
                                 + "frame, try POWER ×2.",
                         11, MUTED, false));
+
+                LinearLayout acTools = new LinearLayout(this);
+                acTools.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams at = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+                at.topMargin = dp(8);
+                Button doctor = styledButton("POWER DOCTOR", BTN, 12);
+                doctor.setTextColor(brandAccent);
+                doctor.setOnClickListener(v -> showPowerDoctor());
+                Button addCodes = styledButton("ADD CODES", BTN, 12);
+                addCodes.setOnClickListener(v -> showAddKey());
+                LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(0, dp(46), 1f);
+                dl.setMargins(0, 0, dp(3), 0);
+                LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(0, dp(46), 1f);
+                al.setMargins(dp(3), 0, 0, 0);
+                acTools.addView(doctor, dl);
+                acTools.addView(addCodes, al);
+                controlsCard.addView(acTools, at);
+
+                if (!R05D.supported(current.buttons.get("power"))
+                        && !current.buttons.containsKey("temp_up")
+                        && !current.buttons.containsKey("temp_down")) {
+                    TextView temp = text("This profile has no temperature codes captured. "
+                            + "ADD CODES can pull a temperature button from another "
+                            + current.brand + " profile in this category; a full .ir "
+                            + "remote also works.", 11, MUTED, false);
+                    temp.setPadding(0, dp(8), 0, 0);
+                    controlsCard.addView(temp);
+                }
+                if (R05D.supported(current.buttons.get("power"))) {
+                    TextView r05d = text("R05D state rebuild ready \u2014 swipe the "
+                            + "controls pages to AIRCON SET for 17\u201330 \u00b0C, "
+                            + "mode and fan frames generated from this unit's own "
+                            + "captured state.", 11, brandAccent, false);
+                    r05d.setPadding(0, dp(8), 0, 0);
+                    controlsCard.addView(r05d);
+                }
             }
+        }
+
+        if (!"Air Conditioner".equals(current.category)) {
+            TextView shortcutLabel = text("SHORTCUTS", 10, brandAccent, true);
+            shortcutLabel.setLetterSpacing(0.14f);
+            shortcutLabel.setPadding(0, dp(14), 0, dp(6));
+            controlsCard.addView(shortcutLabel);
+            controlsCard.addView(shortcutGrid());
+            TextView shortcutNote = text("Tinted buttons send an IR app key to the TV. "
+                    + "The rest open on this phone — IR cannot carry a URL. Hold Web to "
+                    + "change its address.", 11, MUTED, false);
+            shortcutNote.setPadding(0, dp(6), 0, 0);
+            controlsCard.addView(shortcutNote);
         }
 
         Button typeButton = styledButton("\u2328  Type to TV", BTN, 15);
@@ -2170,16 +2585,182 @@ public class MainActivity extends Activity {
         }
 
         if ("Air Conditioner".equals(current.category)) {
-            controlsCard.addView(text(
-                    "Aircon codes are included per button. Temperature/mode buttons "
-                            + "may set a captured state rather than step; if your model "
-                            + "is missing, its IR protocol is not in this database.",
+            boolean r05d = R05D.supported(current.buttons.get("power"));
+            controlsCard.addView(text(r05d
+                    ? "AIRCON SET sends an absolute target, not a step: tap 24 \u00b0C and "
+                    + "the unit is told 24 \u00b0C in one full state frame. Use POWER OFF "
+                    + "(or Power Doctor) to shut it down."
+                    : "Aircon codes are included per button. Temperature/mode buttons "
+                    + "may set a captured state rather than step; if your model is "
+                    + "missing, its IR protocol is not in this database.",
                     11, MUTED, false));
         }
         if (hasHoldable(pages)) {
             controlsCard.addView(text("One tap sends one code. Hold a button to keep "
                     + "sending it.", 11, MUTED, false));
         }
+    }
+
+    private View shortcutGrid() {
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        String[][] items = {
+                {"Netflix", "netflix"}, {"YouTube", "youtube"}, {"Prime", "prime"},
+                {"Apps", "apps"}, {"Copilot", "copilot"}, {"Web", "web"}
+        };
+        for (int i = 0; i < items.length; i += 3) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            for (int j = 0; j < 3; j++) {
+                int n = i + j;
+                if (n >= items.length) {
+                    row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1f));
+                    continue;
+                }
+                final String kind = items[n][1];
+                boolean ir = current != null && current.buttons.containsKey(kind);
+                Button b = styledButton(items[n][0],
+                        ir ? Surface.blend(BTN, brandAccent, 0.16f) : BTN, 13);
+                if (ir) b.setTextColor(brandAccent);
+                b.setContentDescription(items[n][0] + " shortcut");
+                b.setOnClickListener(v -> activateShortcut(kind));
+                if ("web".equals(kind)) {
+                    b.setOnLongClickListener(v -> {
+                        editWebUrl();
+                        return true;
+                    });
+                }
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+                lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+                row.addView(b, lp);
+            }
+            grid.addView(row);
+        }
+        return grid;
+    }
+
+    private void activateShortcut(String kind) {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        if ("netflix".equals(kind)) {
+            if (sendKeyIfPresent("netflix")) return;
+            openPackageOrUrl("com.netflix.mediaclient", "https://www.netflix.com",
+                    "Netflix");
+        } else if ("youtube".equals(kind)) {
+            if (sendKeyIfPresent("youtube")) return;
+            openPackageOrUrl("com.google.android.youtube", "https://www.youtube.com",
+                    "YouTube");
+        } else if ("prime".equals(kind)) {
+            if (sendKeyIfPresent("prime")) return;
+            openPackageOrUrl("com.amazon.avod.thirdpartyclient",
+                    "https://www.primevideo.com", "Prime Video");
+        } else if ("apps".equals(kind)) {
+            if (sendKeyIfPresent("apps")) return;
+            status.setText("This profile has no Apps key. Add one from a sibling "
+                    + "model in More \u2192 Add a missing button.");
+        } else if ("copilot".equals(kind)) {
+            openPackageOrUrl("com.microsoft.copilot",
+                    "https://copilot.microsoft.com", "Copilot");
+        } else if ("web".equals(kind)) {
+            openLink(DeviceStore.webUrl(this));
+            status.setText("Opening " + DeviceStore.webUrl(this));
+        }
+    }
+
+    private boolean sendKeyIfPresent(String key) {
+        if (current == null || !current.buttons.containsKey(key)) return false;
+        send(key);
+        return true;
+    }
+
+    private void openPackageOrUrl(String pkg, String url, String name) {
+        try {
+            Intent launch = getPackageManager().getLaunchIntentForPackage(pkg);
+            if (launch != null) {
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(launch);
+                status.setText("Opened " + name + " on this phone.");
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+        openLink(url);
+        status.setText("This profile has no " + name + " IR key \u2014 opened it "
+                + "on this phone.");
+    }
+
+    private void editWebUrl() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(20));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("Web shortcut", 24, TEXT, true));
+        TextView note = text("The Web button opens this address on the phone. "
+                + "A TV cannot receive a URL over IR.", 12, MUTED, false);
+        note.setPadding(0, dp(6), 0, dp(10));
+        panel.addView(note);
+
+        EditText input = new EditText(this);
+        input.setText(DeviceStore.webUrl(this));
+        input.setHint("https://example.com");
+        input.setHintTextColor(MUTED);
+        input.setTextColor(TEXT);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        panel.addView(input, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+
+        LinearLayout quick = new LinearLayout(this);
+        quick.setOrientation(LinearLayout.HORIZONTAL);
+        String[][] links = {{"YouTube", "https://www.youtube.com"},
+                {"Netflix", "https://www.netflix.com"},
+                {"Prime", "https://www.primevideo.com"}};
+        for (int i = 0; i < links.length; i++) {
+            final String preset = links[i][1];
+            Button b = styledButton(links[i][0], BTN, 12);
+            b.setOnClickListener(v -> input.setText(preset));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            lp.setMargins(dp(i == 0 ? 0 : 3), dp(8), dp(i == 2 ? 0 : 3), 0);
+            quick.addView(b, lp);
+        }
+        panel.addView(quick);
+
+        Button save = highlightButton("Save address", 15);
+        save.setOnClickListener(v -> {
+            String url = input.getText().toString().trim();
+            if (url.isEmpty()) {
+                input.setError("Enter an address");
+                return;
+            }
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "https://" + url;
+            }
+            DeviceStore.setWebUrl(this, url);
+            status.setText("Web shortcut set to " + url);
+            dialog.dismiss();
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        sl.topMargin = dp(14);
+        panel.addView(save, sl);
+
+        Button cancel = styledButton("Cancel", BTN, 13);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        cl.topMargin = dp(8);
+        panel.addView(cancel, cl);
+
+        dialog.setContentView(panel);
+        dialog.show();
     }
 
     private List<Page> buildPages() {
@@ -2214,6 +2795,18 @@ public class MainActivity extends Activity {
         }
         addPage(pages, "MEDIA", media);
 
+        List<String> apps = new ArrayList<>();
+        for (String key : APP_KEYS) {
+            if (current.buttons.containsKey(key) && used.add(key)) apps.add(key);
+        }
+        addPage(pages, "APPS", apps);
+
+        List<String> acSet = new ArrayList<>();
+        for (String key : current.buttons.keySet()) {
+            if (key.startsWith("ac_") && used.add(key)) acSet.add(key);
+        }
+        addPage(pages, "AIRCON SET", acSet);
+
         List<String> numbers = new ArrayList<>();
         for (String key : NUMBER_KEYS) {
             if (current.buttons.containsKey(key) && used.add(key)) numbers.add(key);
@@ -2236,7 +2829,14 @@ public class MainActivity extends Activity {
         for (String key : BUTTON_ORDER) {
             // Both power buttons live in the header; a second copy in EXTRAS is clutter.
             if (key.equals("power") || key.equals("power_off")) continue;
+            if (key.startsWith("ac_")) continue;
             if (current.buttons.containsKey(key) && used.add(key)) extras.add(key);
+        }
+        // Never drop a key just because this build has not heard of it.
+        for (String key : current.buttons.keySet()) {
+            if (key.equals("power") || key.equals("power_off")) continue;
+            if (key.startsWith("ac_")) continue;
+            if (used.add(key)) extras.add(key);
         }
         addPage(pages, "EXTRAS", extras);
         return pages;
@@ -2282,7 +2882,7 @@ public class MainActivity extends Activity {
     }
 
     private void addPageView(LinearLayout parent, Page page) {
-        TextView title = text(page.title, 10, ACCENT, true);
+        TextView title = text(page.title, 10, brandAccent == 0 ? ACCENT : brandAccent, true);
         title.setLetterSpacing(0.12f);
         title.setPadding(0, dp(6), 0, dp(4));
         parent.addView(title);
@@ -2437,6 +3037,1423 @@ public class MainActivity extends Activity {
         }
     }
 
+    // --------------------------------------------------------------- macros
+
+    private int buttonRank(String key) {
+        for (int i = 0; i < BUTTON_ORDER.length; i++) {
+            if (BUTTON_ORDER[i].equals(key)) return i;
+        }
+        return BUTTON_ORDER.length;
+    }
+
+    private void showMacroPage() {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        if (macroDialog != null && macroDialog.isShowing()) macroDialog.dismiss();
+        macroDialog = new Dialog(this);
+        macroDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(BG);
+        panel.setPadding(dp(20), dp(26), dp(20), dp(16));
+
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        Button back = styledButton("\u2039", BTN, 20);
+        back.setContentDescription("Close macros");
+        back.setOnClickListener(v -> macroDialog.dismiss());
+        head.addView(back, new LinearLayout.LayoutParams(dp(42), dp(42)));
+
+        LinearLayout titles = new LinearLayout(this);
+        titles.setOrientation(LinearLayout.VERTICAL);
+        titles.setPadding(dp(10), 0, 0, 0);
+        titles.addView(text("Macros", 26, TEXT, true));
+        titles.addView(text(prettyBrand(current.brand) + " \u2014 " + pretty(current.name),
+                12, MUTED, false));
+        head.addView(titles, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button add = highlightButton("+ New", 13, brandAccent);
+        add.setOnClickListener(v -> openMacroEditor(null));
+        head.addView(add, new LinearLayout.LayoutParams(dp(78), dp(42)));
+        panel.addView(head);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        macroContent = new LinearLayout(this);
+        macroContent.setOrientation(LinearLayout.VERTICAL);
+        macroContent.setPadding(0, dp(10), 0, dp(12));
+        scroll.addView(macroContent, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        macroDialog.setContentView(panel);
+        macroDialog.show();
+        Window w = macroDialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.96f);
+            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.90f);
+            w.setAttributes(lp);
+        }
+        renderMacroList();
+    }
+
+    private void renderMacroList() {
+        if (macroContent == null) return;
+        macroContent.removeAllViews();
+        List<DeviceStore.Macro> macros = DeviceStore.macros(this, macroKey());
+        TextView header = text("SAVED MACROS \u00b7 " + macros.size(), 10, brandAccent, true);
+        header.setLetterSpacing(0.14f);
+        header.setPadding(0, dp(4), 0, dp(8));
+        macroContent.addView(header);
+
+        if (macros.isEmpty()) {
+            LinearLayout empty = card();
+            empty.addView(text("No macros yet", 18, TEXT, true));
+            TextView note = text("A macro sends a sequence with a pause between each "
+                    + "press. Build one for \u201cWatch TV\u201d, \u201cMovie night\u201d "
+                    + "or \u201cGood night\u201d.", 12, MUTED, false);
+            note.setPadding(0, dp(4), 0, 0);
+            empty.addView(note);
+            macroContent.addView(empty);
+        } else {
+            for (DeviceStore.Macro macro : macros) macroContent.addView(macroRow(macro));
+        }
+
+        Button create = styledButton("+  New macro", BTN, 15);
+        create.setOnClickListener(v -> openMacroEditor(null));
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        cl.topMargin = dp(10);
+        macroContent.addView(create, cl);
+
+        TextView note = text("Macros are stored on this phone with the remote profile. "
+                + "Each step sends one IR code; the pause gives the device time to "
+                + "react. A macro can repeat forever and stops the moment you tap Stop.",
+                11, MUTED, false);
+        note.setPadding(dp(4), dp(12), dp(4), 0);
+        macroContent.addView(note);
+    }
+
+    private View macroRow(final DeviceStore.Macro macro) {
+        LinearLayout box = card();
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.addView(text(macro.name, 18, TEXT, true), new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        String loopSuffix = macro.loop < 0 ? " \u00b7 loop \u221e"
+                : macro.loop > 1 ? " \u00b7 loop \u00d7" + macro.loop : "";
+        top.addView(text(macro.steps.size() + (macro.steps.size() == 1 ? " step" : " steps")
+                + loopSuffix, 11, MUTED, false));
+        box.addView(top);
+
+        StringBuilder summary = new StringBuilder();
+        for (int i = 0; i < macro.steps.size() && i < 4; i++) {
+            if (i > 0) summary.append("  \u203a  ");
+            summary.append(labelFor(macro.steps.get(i).key));
+        }
+        if (macro.steps.size() > 4) summary.append("  \u203a  \u2026");
+        TextView steps = text(summary.toString(), 11, MUTED, false);
+        steps.setPadding(0, dp(4), 0, dp(8));
+        box.addView(steps);
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        Button run = highlightButton("Run", 12, brandAccent);
+        run.setOnClickListener(v -> runMacro(macro));
+        Button loop = styledButton("Loop \u221e", BTN, 12);
+        loop.setContentDescription("Run this macro forever");
+        loop.setOnClickListener(v -> runMacro(macro, -1));
+        Button edit = styledButton("Edit", BTN, 12);
+        edit.setOnClickListener(v -> openMacroEditor(macro));
+        Button delete = styledButton("Delete", Surface.blend(CARD, RED, 0.20f), 12);
+        delete.setTextColor(RED);
+        delete.setOnClickListener(v -> confirmDeleteMacro(macro));
+        actions.addView(run, new LinearLayout.LayoutParams(0, dp(42), 1f));
+        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(0, dp(42), 1f);
+        ll.setMargins(dp(5), 0, dp(5), 0);
+        actions.addView(loop, ll);
+        LinearLayout.LayoutParams el = new LinearLayout.LayoutParams(0, dp(42), 1f);
+        el.setMargins(0, 0, dp(5), 0);
+        actions.addView(edit, el);
+        actions.addView(delete, new LinearLayout.LayoutParams(0, dp(42), 1f));
+        box.addView(actions);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(10);
+        box.setLayoutParams(lp);
+        return box;
+    }
+
+    private void confirmDeleteMacro(final DeviceStore.Macro macro) {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete macro?")
+                .setMessage(macro.name)
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    List<DeviceStore.Macro> macros = DeviceStore.macros(this, macroKey());
+                    for (int i = macros.size() - 1; i >= 0; i--) {
+                        if (macros.get(i).id.equals(macro.id)) macros.remove(i);
+                    }
+                    DeviceStore.saveMacros(this, macroKey(), macros);
+                    renderMacroList();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void openMacroEditor(DeviceStore.Macro source) {
+        if (macroContent == null || current == null) return;
+        final DeviceStore.Macro macro = new DeviceStore.Macro(
+                source == null ? UUID.randomUUID().toString() : source.id,
+                source == null ? "" : source.name);
+        macro.loop = source == null ? 0 : source.loop;
+        if (source != null) {
+            for (DeviceStore.MacroStep step : source.steps) {
+                macro.steps.add(new DeviceStore.MacroStep(step.key, step.delayMs));
+            }
+        }
+
+        macroContent.removeAllViews();
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        Button back = styledButton("\u2039", BTN, 20);
+        back.setContentDescription("Back to macros");
+        back.setOnClickListener(v -> renderMacroList());
+        head.addView(back, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        TextView title = text(source == null ? "New macro" : "Edit macro", 22, TEXT, true);
+        title.setPadding(dp(10), 0, 0, 0);
+        head.addView(title, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        macroContent.addView(head);
+
+        TextView nameHeader = text("NAME", 10, brandAccent, true);
+        nameHeader.setLetterSpacing(0.14f);
+        nameHeader.setPadding(0, dp(14), 0, dp(4));
+        macroContent.addView(nameHeader);
+
+        final EditText name = new EditText(this);
+        name.setText(macro.name);
+        name.setHint("Watch TV");
+        name.setHintTextColor(MUTED);
+        name.setTextColor(TEXT);
+        name.setSingleLine(true);
+        name.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        macroContent.addView(name, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+
+        TextView stepsHeader = text("STEPS", 10, brandAccent, true);
+        stepsHeader.setLetterSpacing(0.14f);
+        stepsHeader.setPadding(0, dp(16), 0, dp(6));
+        macroContent.addView(stepsHeader);
+
+        final LinearLayout stepList = new LinearLayout(this);
+        stepList.setOrientation(LinearLayout.VERTICAL);
+        macroContent.addView(stepList);
+        renderMacroSteps(macro, stepList);
+
+        Button addStep = styledButton("+  Add a button", BTN, 14);
+        addStep.setOnClickListener(v -> showStepPicker(macro, stepList));
+        LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        al.topMargin = dp(8);
+        macroContent.addView(addStep, al);
+
+        TextView repeatHeader = text("REPEAT", 10, brandAccent, true);
+        repeatHeader.setLetterSpacing(0.14f);
+        repeatHeader.setPadding(0, dp(16), 0, dp(6));
+        macroContent.addView(repeatHeader);
+        final LinearLayout loopRow = new LinearLayout(this);
+        loopRow.setOrientation(LinearLayout.HORIZONTAL);
+        macroContent.addView(loopRow);
+        renderLoopChips(loopRow, macro);
+
+        Button save = highlightButton("Save macro", 15, brandAccent);
+        save.setOnClickListener(v -> {
+            String text = name.getText().toString().trim();
+            if (text.isEmpty()) {
+                name.setError("Give this macro a name");
+                name.requestFocus();
+                return;
+            }
+            if (macro.steps.isEmpty()) {
+                Toast.makeText(this, "Add at least one step first.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            macro.name = text;
+            List<DeviceStore.Macro> macros = DeviceStore.macros(this, macroKey());
+            boolean replaced = false;
+            for (int i = 0; i < macros.size(); i++) {
+                if (macros.get(i).id.equals(macro.id)) {
+                    macros.set(i, macro);
+                    replaced = true;
+                    break;
+                }
+            }
+            if (!replaced) macros.add(macro);
+            DeviceStore.saveMacros(this, macroKey(), macros);
+            Toast.makeText(this, "Saved \u201c" + macro.name + "\u201d",
+                    Toast.LENGTH_SHORT).show();
+            renderMacroList();
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        sl.topMargin = dp(16);
+        macroContent.addView(save, sl);
+
+        Button cancel = styledButton("Cancel", BTN, 13);
+        cancel.setOnClickListener(v -> renderMacroList());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        cl.topMargin = dp(8);
+        macroContent.addView(cancel, cl);
+    }
+
+    private void renderLoopChips(LinearLayout row, DeviceStore.Macro macro) {
+        row.removeAllViews();
+        final int[] values = {0, 2, 5, -1};
+        final String[] labels = {"Once", "\u00d72", "\u00d75", "\u221e"};
+        for (int i = 0; i < values.length; i++) {
+            final int value = values[i];
+            Button b = styledButton(labels[i], macro.loop == value ? ACTIVE : BTN, 12);
+            if (macro.loop == value) b.setTextColor(brandAccent);
+            b.setOnClickListener(v -> {
+                macro.loop = value;
+                renderLoopChips(row, macro);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(44), 1f);
+            lp.setMargins(dp(i == 0 ? 0 : 3), 0, dp(i == 3 ? 0 : 3), 0);
+            row.addView(b, lp);
+        }
+    }
+
+    private void renderMacroSteps(final DeviceStore.Macro macro,
+                                  final LinearLayout parent) {
+        parent.removeAllViews();
+        if (macro.steps.isEmpty()) {
+            TextView empty = text("No steps yet. Add the buttons in the order you "
+                    + "want them sent.", 12, MUTED, false);
+            empty.setPadding(dp(2), dp(4), 0, dp(6));
+            parent.addView(empty);
+            return;
+        }
+        for (int i = 0; i < macro.steps.size(); i++) {
+            final int index = i;
+            final DeviceStore.MacroStep step = macro.steps.get(i);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(dp(12), dp(8), dp(12), dp(8));
+            row.setBackground(Surface.raised(this, 16, BTN, STROKE,
+                    palette.gloss(0.08f)));
+            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rl.bottomMargin = dp(8);
+            parent.addView(row, rl);
+
+            LinearLayout top = new LinearLayout(this);
+            top.setOrientation(LinearLayout.HORIZONTAL);
+            top.setGravity(Gravity.CENTER_VERTICAL);
+            top.addView(text((i + 1) + ". " + labelFor(step.key), 14, TEXT, true),
+                    new LinearLayout.LayoutParams(0,
+                            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            Button up = styledButton("\u2191", BTN, 13);
+            up.setContentDescription("Move step up");
+            up.setOnClickListener(v -> {
+                if (index > 0) {
+                    Collections.swap(macro.steps, index, index - 1);
+                    renderMacroSteps(macro, parent);
+                }
+            });
+            Button down = styledButton("\u2193", BTN, 13);
+            down.setContentDescription("Move step down");
+            down.setOnClickListener(v -> {
+                if (index < macro.steps.size() - 1) {
+                    Collections.swap(macro.steps, index, index + 1);
+                    renderMacroSteps(macro, parent);
+                }
+            });
+            Button remove = styledButton("\u00d7", Surface.blend(CARD, RED, 0.18f), 16);
+            remove.setTextColor(RED);
+            remove.setContentDescription("Remove step");
+            remove.setOnClickListener(v -> {
+                macro.steps.remove(index);
+                renderMacroSteps(macro, parent);
+            });
+            top.addView(up, new LinearLayout.LayoutParams(dp(32), dp(32)));
+            top.addView(down, new LinearLayout.LayoutParams(dp(32), dp(32)));
+            top.addView(remove, new LinearLayout.LayoutParams(dp(32), dp(32)));
+            row.addView(top);
+
+            LinearLayout pause = new LinearLayout(this);
+            pause.setOrientation(LinearLayout.HORIZONTAL);
+            pause.setGravity(Gravity.CENTER_VERTICAL);
+            pause.setPadding(0, dp(4), 0, 0);
+            TextView label = text("Pause after", 11, MUTED, false);
+            label.setWidth(dp(84));
+            pause.addView(label);
+            final int[] delays = {200, 400, 600, 1000, 1500, 2500};
+            Spinner spinner = new Spinner(this);
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                    android.R.layout.simple_spinner_item,
+                    new String[]{"0.2 s", "0.4 s", "0.6 s", "1 s", "1.5 s", "2.5 s"});
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinner.setAdapter(adapter);
+            int best = 0;
+            for (int d = 0; d < delays.length; d++) {
+                if (Math.abs(delays[d] - step.delayMs)
+                        < Math.abs(delays[best] - step.delayMs)) best = d;
+            }
+            spinner.setSelection(best);
+            spinner.setOnItemSelectedListener(new SimpleItemListener() {
+                @Override
+                public void onItemSelected(int position) {
+                    step.delayMs = delays[position];
+                }
+            });
+            pause.addView(spinner, new LinearLayout.LayoutParams(0, dp(44), 1f));
+            row.addView(pause);
+        }
+    }
+
+    private void showStepPicker(final DeviceStore.Macro macro,
+                                final LinearLayout stepList) {
+        if (current == null) return;
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(18), dp(18), dp(18), dp(16));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+        panel.addView(text("Add a button", 22, TEXT, true));
+        TextView note = text("Everything this remote carries is listed here \u2014 "
+                + "including keys added from sibling models.", 11, MUTED, false);
+        note.setPadding(0, dp(2), 0, dp(8));
+        panel.addView(note);
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list);
+        panel.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        List<String> keys = new ArrayList<>(current.buttons.keySet());
+        Collections.sort(keys, (a, b) -> {
+            int rank = Integer.compare(buttonRank(a), buttonRank(b));
+            return rank != 0 ? rank : labelFor(a).compareToIgnoreCase(labelFor(b));
+        });
+        for (final String key : keys) {
+            TextView row = text(labelFor(key), 15, TEXT, false);
+            row.setPadding(dp(10), dp(12), dp(10), dp(12));
+            row.setOnClickListener(v -> {
+                macro.steps.add(new DeviceStore.MacroStep(key, 600));
+                dialog.dismiss();
+                renderMacroSteps(macro, stepList);
+            });
+            list.addView(row);
+        }
+
+        Button cancel = styledButton("Cancel", BTN, 13);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        cl.topMargin = dp(8);
+        panel.addView(cancel, cl);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.72f);
+            w.setAttributes(lp);
+        }
+    }
+
+    private void runMacro(final DeviceStore.Macro macro) {
+        runMacro(macro, macro.loop);
+    }
+
+    private void runMacro(final DeviceStore.Macro macro, final int loopMode) {
+        if (current == null || macro.steps.isEmpty()) return;
+        final Remote remote = current;
+        final List<DeviceStore.MacroStep> steps = new ArrayList<>(macro.steps);
+        final String deviceKey = macroKeyFor(remote);
+        final boolean jack = emitterState() == EMITTER_JACK;
+        if (!jack) {
+            if (ir == null) {
+                status.setText("No IR service on this phone.");
+                return;
+            }
+            if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
+                status.setText(noEmitterMessage());
+                return;
+            }
+        }
+        if (irExecutor.isShutdown() || !irBusy.compareAndSet(false, true)) {
+            status.setText("IR is busy \u2014 wait a moment and run it again.");
+            return;
+        }
+        macroCancelled.set(false);
+
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(22), dp(22), dp(22), dp(18));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("RUNNING MACRO", 10, brandAccent, true));
+        TextView title = text(macro.name, 24, TEXT, true);
+        title.setPadding(0, dp(2), 0, dp(6));
+        panel.addView(title);
+        final TextView detail = text(loopMode < 0
+                ? "Starting\u2026 looping until you stop it."
+                : "Starting\u2026", 12, MUTED, false);
+        panel.addView(detail);
+
+        final ProgressBar progress = new ProgressBar(this, null,
+                android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(steps.size());
+        progress.setProgress(0);
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(8));
+        pl.topMargin = dp(12);
+        panel.addView(progress, pl);
+
+        Button stop = styledButton("Stop macro", BTN, 13);
+        stop.setOnClickListener(v -> {
+            macroCancelled.set(true);
+            dialog.dismiss();
+            status.setText("Macro stopping\u2026");
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        sl.topMargin = dp(14);
+        panel.addView(stop, sl);
+        dialog.setOnCancelListener(d -> macroCancelled.set(true));
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.88f);
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            w.setAttributes(lp);
+        }
+
+        irExecutor.execute(() -> runMacroLoop(macro, loopMode, remote, deviceKey,
+                steps, jack, dialog, detail, progress));
+    }
+
+    private void runMacroLoop(DeviceStore.Macro macro, int loopMode, Remote remote,
+                              String deviceKey, List<DeviceStore.MacroStep> steps,
+                              boolean jack, Dialog dialog, TextView detail,
+                              ProgressBar progress) {
+        String failure = null;
+        int presses = 0;
+        int loops = 0;
+        boolean stopped = false;
+        DeviceStore.Calibration cal = DeviceStore.calibration(this, deviceKey);
+        int macroRepeats = cal != null ? cal.repeats
+                : (DeviceStore.boostAll(this) ? 2 : 1);
+        try {
+            boolean forever = loopMode < 0;
+            int target = loopMode <= 0 ? 1 : loopMode;
+            while (!macroCancelled.get() && (forever || loops < target)) {
+                loops++;
+                for (int i = 0; i < steps.size() && !macroCancelled.get(); i++) {
+                    DeviceStore.MacroStep step = steps.get(i);
+                    final int shownLoop = loops;
+                    final int shownStep = i + 1;
+                    final int shownPresses = presses;
+                    runOnUiThread(() -> {
+                        if (!dialog.isShowing()) return;
+                        String loopText = forever ? "loop \u221e"
+                                : "loop " + shownLoop + "/" + target;
+                        detail.setText(loopText + " \u00b7 press " + shownPresses
+                                + " \u00b7 " + shownStep + "/" + steps.size()
+                                + "  " + labelFor(step.key));
+                        progress.setProgress(shownStep - 1);
+                    });
+                    Code code = step.key.startsWith("ac_")
+                            ? acStateCode(step.key, remote)
+                            : remote.buttons.get(step.key);
+                    if (code != null) {
+                        // Never multi-fire a power code inside a sequence: a repeated
+                        // toggle frame would turn the device straight back off.
+                        boolean powerStep = "power".equals(step.key)
+                                || "power_off".equals(step.key);
+                        sendCodeBlocking(code, jack, deviceKey,
+                                powerStep ? 1 : macroRepeats);
+                        presses++;
+                    }
+                    sleepWhile(step.delayMs, macroCancelled);
+                }
+                if (!forever && loops >= target) break;
+                sleepWhile(400, macroCancelled);
+            }
+        } catch (Exception e) {
+            failure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        } finally {
+            stopped = macroCancelled.get();
+            irBusy.set(false);
+            final String why = failure;
+            final int sent = presses;
+            final int rounds = loops;
+            final boolean wasStopped = stopped;
+            runOnUiThread(() -> {
+                if (dialog.isShowing()) dialog.dismiss();
+                if (why != null) {
+                    status.setText("Macro stopped: " + why);
+                } else if (wasStopped) {
+                    status.setText("Macro stopped after " + sent + " press"
+                            + (sent == 1 ? "" : "es") + ".");
+                } else {
+                    status.setText("Ran \u201c" + macro.name + "\u201d \u00b7 "
+                            + sent + " press" + (sent == 1 ? "" : "es")
+                            + (rounds > 1 ? " \u00b7 " + rounds + " loops" : "") + ".");
+                }
+            });
+        }
+    }
+
+    // ----------------------------------------------------------- test storm
+
+    private void showStormDialog() {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(18));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("Test Storm", 24, TEXT, true));
+        TextView note = text("Fires every button on this remote in a shuffled order, "
+                + "pass after pass, so you can see which ones the device answers. It "
+                + "keeps going until you stop it.", 12, MUTED, false);
+        note.setPadding(0, dp(4), 0, dp(10));
+        panel.addView(note);
+
+        TextView speedHeader = text("SPEED BETWEEN PRESSES", 10, brandAccent, true);
+        speedHeader.setLetterSpacing(0.12f);
+        panel.addView(speedHeader);
+
+        final int[] speeds = {150, 250, 350, 800};
+        final String[] labels = {"Fast", "0.25 s", "0.35 s", "0.8 s"};
+        LinearLayout speedRow = new LinearLayout(this);
+        speedRow.setOrientation(LinearLayout.HORIZONTAL);
+        speedRow.setPadding(0, dp(4), 0, dp(8));
+        for (int i = 0; i < speeds.length; i++) {
+            final int delay = speeds[i];
+            Button b = styledButton(labels[i],
+                    DeviceStore.stormDelayMs(this) == delay ? ACTIVE : BTN, 12);
+            if (DeviceStore.stormDelayMs(this) == delay) b.setTextColor(brandAccent);
+            b.setOnClickListener(v -> {
+                DeviceStore.setStormDelayMs(this, delay);
+                for (int j = 0; j < speedRow.getChildCount(); j++) {
+                    Button chip = (Button) speedRow.getChildAt(j);
+                    chip.setBackground(Surface.raised(this, 20, BTN, palette.rim(),
+                            palette.gloss(0.14f)));
+                    chip.setTextColor(TEXT);
+                }
+                b.setBackground(Surface.raised(this, 20, ACTIVE, STROKE,
+                        palette.gloss(0.18f)));
+                b.setTextColor(brandAccent);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(44), 1f);
+            lp.setMargins(dp(i == 0 ? 0 : 3), 0, dp(i == 3 ? 0 : 3), 0);
+            speedRow.addView(b, lp);
+        }
+        panel.addView(speedRow);
+
+        final CheckBox power = new CheckBox(this);
+        power.setText("Include POWER and POWER OFF");
+        power.setTextColor(TEXT);
+        power.setButtonTintList(ColorStateList.valueOf(ACCENT));
+        power.setChecked(DeviceStore.stormIncludePower(this));
+        power.setOnCheckedChangeListener((buttonView, checked) ->
+                DeviceStore.setStormIncludePower(this, checked));
+        panel.addView(power);
+
+        TextView warning = text("Power is left out by default so the device stays on "
+                + "while you test the rest. Some aircon frames take a second to send; "
+                + "the storm waits for each one.", 11, MUTED, false);
+        warning.setPadding(dp(4), dp(0), dp(4), dp(10));
+        panel.addView(warning);
+
+        Button start = highlightButton("Start storm", 16, brandAccent);
+        start.setOnClickListener(v -> {
+            dialog.dismiss();
+            startStorm();
+        });
+        panel.addView(start, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(54)));
+
+        Button cancel = styledButton("Cancel", BTN, 13);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        cl.topMargin = dp(8);
+        panel.addView(cancel, cl);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            w.setAttributes(lp);
+        }
+    }
+
+    private void startStorm() {
+        if (current == null) return;
+        final Remote remote = current;
+        boolean includePower = DeviceStore.stormIncludePower(this);
+        final List<String> keys = new ArrayList<>();
+        for (String key : remote.buttons.keySet()) {
+            if (!includePower && ("power".equals(key) || "power_off".equals(key))) continue;
+            keys.add(key);
+        }
+        if (keys.isEmpty()) {
+            status.setText("This remote has no buttons to storm.");
+            return;
+        }
+        final String deviceKey = macroKeyFor(remote);
+        final boolean jack = emitterState() == EMITTER_JACK;
+        if (!jack) {
+            if (ir == null) {
+                status.setText("No IR service on this phone.");
+                return;
+            }
+            if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
+                status.setText(noEmitterMessage());
+                return;
+            }
+        }
+        if (irExecutor.isShutdown() || !irBusy.compareAndSet(false, true)) {
+            status.setText("IR is busy \u2014 wait a moment and start again.");
+            return;
+        }
+        stormCancelled.set(false);
+
+        stormDialog = new Dialog(this);
+        stormDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(22), dp(22), dp(22), dp(18));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("TEST STORM RUNNING", 10, brandAccent, true));
+        final TextView count = text("0", 46, TEXT, true);
+        count.setPadding(0, dp(2), 0, 0);
+        panel.addView(count);
+        final TextView now = text("Starting\u2026", 13, MUTED, false);
+        panel.addView(now);
+        final TextView pressLog = text("", 11, MUTED, false);
+        pressLog.setPadding(0, dp(8), 0, 0);
+        panel.addView(pressLog);
+
+        final Button stop = styledButton("STOP STORM", Surface.blend(CARD, RED, 0.22f), 17);
+        stop.setTextColor(RED);
+        stop.setOnClickListener(v -> {
+            stormCancelled.set(true);
+            if (stormDialog != null && stormDialog.isShowing()) stormDialog.dismiss();
+            status.setText("Test Storm stopping\u2026");
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(64));
+        sl.topMargin = dp(16);
+        panel.addView(stop, sl);
+        stormDialog.setOnCancelListener(d -> stormCancelled.set(true));
+        stormDialog.setContentView(panel);
+        stormDialog.show();
+        Window w = stormDialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.90f);
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            w.setAttributes(lp);
+        }
+
+        irExecutor.execute(() -> runStorm(remote, deviceKey, keys, jack, count, now, pressLog));
+    }
+
+    private void runStorm(Remote remote, String deviceKey, List<String> keys,
+                          boolean jack, TextView count, TextView now, TextView pressLog) {
+        int presses = 0;
+        int pass = 0;
+        List<String> deck = new ArrayList<>(keys);
+        Collections.shuffle(deck, stormRandom);
+        String last = null;
+        StringBuilder log = new StringBuilder();
+        try {
+            while (!stormCancelled.get()) {
+                // Work through a shuffled deck so every button is exercised once
+                // per pass, then reshuffle. Random picks alone can miss keys.
+                if (deck.isEmpty()) {
+                    pass++;
+                    deck = new ArrayList<>(keys);
+                    Collections.shuffle(deck, stormRandom);
+                    if (keys.size() > 1 && deck.get(0).equals(last)) {
+                        Collections.swap(deck, 0, 1);
+                    }
+                }
+                String key = deck.remove(0);
+                Code code = key.startsWith("ac_")
+                        ? acStateCode(key, remote)
+                        : remote.buttons.get(key);
+                if (code == null) continue;
+                last = key;
+                sendCodeBlocking(code, jack, deviceKey, 1);
+                presses++;
+                final int shown = presses;
+                final int shownPass = pass + 1;
+                final String shownKey = labelFor(key);
+                runOnUiThread(() -> {
+                    count.setText(String.valueOf(shown));
+                    now.setText("Now: " + shownKey + " \u00b7 pass " + shownPass);
+                    log.append(shown == 1 ? "" : " \u00b7 ").append(shownKey);
+                    if (log.length() > 120) {
+                        int cut = log.indexOf(" \u00b7 ", log.length() - 80);
+                        if (cut > 0) log.delete(0, cut + 3);
+                    }
+                    pressLog.setText(log.toString());
+                });
+                int delay = DeviceStore.stormDelayMs(this);
+                sleepWhile(delay + stormRandom.nextInt(80), stormCancelled);
+            }
+        } catch (Exception e) {
+            final String why = e.getMessage() == null
+                    ? e.getClass().getSimpleName() : e.getMessage();
+            runOnUiThread(() -> status.setText("Test Storm stopped: " + why));
+        } finally {
+            boolean stopped = stormCancelled.get();
+            irBusy.set(false);
+            final int sent = presses;
+            runOnUiThread(() -> {
+                if (stormDialog != null && stormDialog.isShowing()) stormDialog.dismiss();
+                if (stopped) {
+                    status.setText("Test Storm stopped after " + sent + " press"
+                            + (sent == 1 ? "" : "es") + ".");
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------ signal lab
+
+    private List<Integer> supportedFrequencies() {
+        List<Integer> out = new ArrayList<>();
+        int[] candidates = {33000, 36000, 38000, 40000, 56000};
+        if (ir != null) {
+            try {
+                ConsumerIrManager.CarrierFrequencyRange[] ranges = ir.getCarrierFrequencies();
+                if (ranges != null && ranges.length > 0) {
+                    for (int candidate : candidates) {
+                        for (ConsumerIrManager.CarrierFrequencyRange range : ranges) {
+                            if (candidate >= range.getMinFrequency()
+                                    && candidate <= range.getMaxFrequency()) {
+                                if (!out.contains(candidate)) out.add(candidate);
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        if (out.isEmpty()) {
+            out.add(36000);
+            out.add(38000);
+            out.add(40000);
+        }
+        return out;
+    }
+
+    private boolean sendRawTest(Code code, int freq, int repeats, int gapMs) {
+        boolean jack = emitterState() == EMITTER_JACK;
+        if (!jack) {
+            if (ir == null) {
+                status.setText("No IR service on this phone.");
+                return false;
+            }
+            if (!ir.hasIrEmitter() && !DeviceStore.irOverride(this)) {
+                status.setText(noEmitterMessage());
+                return false;
+            }
+        }
+        if (irExecutor.isShutdown() || !irBusy.compareAndSet(false, true)) {
+            status.setText("IR is busy \u2014 wait a moment and try again.");
+            return false;
+        }
+        final int count = Math.max(1, Math.min(3, repeats));
+        final int gap = Math.max(20, gapMs);
+        irExecutor.execute(() -> {
+            String failure = null;
+            try {
+                for (int i = 0; i < count; i++) {
+                    if (jack) {
+                        JackBlaster.Result sent = JackBlaster.send(this, code);
+                        if (!sent.ok) {
+                            failure = sent.detail;
+                            break;
+                        }
+                    } else {
+                        ir.transmit(carrierFor(freq), code.pattern);
+                    }
+                    if (i + 1 < count) Thread.sleep(gap);
+                }
+            } catch (Exception e) {
+                failure = e.getMessage() == null
+                        ? e.getClass().getSimpleName() : e.getMessage();
+            } finally {
+                irBusy.set(false);
+                final String why = failure;
+                if (why != null) runOnUiThread(() ->
+                        status.setText("Test send failed: " + why));
+            }
+        });
+        return true;
+    }
+
+    private void showSignalLab() {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        final List<String> keys = new ArrayList<>(current.buttons.keySet());
+        if (keys.isEmpty()) {
+            status.setText("This remote has no codes to test.");
+            return;
+        }
+        Collections.sort(keys, (a, b) -> {
+            int rank = Integer.compare(buttonRank(a), buttonRank(b));
+            return rank != 0 ? rank : labelFor(a).compareToIgnoreCase(labelFor(b));
+        });
+        final List<Integer> freqs = supportedFrequencies();
+
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(18));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("Signal Lab", 24, TEXT, true));
+        TextView note = text("IR is one-way: the phone cannot hear whether the device "
+                + "answered. Send the same button at different timings, then save the "
+                + "one that worked. The setting follows this remote profile.", 12, MUTED, false);
+        note.setPadding(0, dp(4), 0, dp(10));
+        panel.addView(note);
+
+        final int[] sel = {freqs.contains(38000) ? 38000 : freqs.get(0), 1, 50};
+        final String[] testKey = {keys.get(0)};
+
+        Spinner keySpinner = new Spinner(this);
+        List<String> keyLabels = new ArrayList<>();
+        for (String key : keys) keyLabels.add(labelFor(key));
+        ArrayAdapter<String> ka = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, keyLabels);
+        ka.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        keySpinner.setAdapter(ka);
+        inDialogRow(panel, "Button", keySpinner);
+
+        Spinner freqSpinner = new Spinner(this);
+        List<String> freqLabels = new ArrayList<>();
+        int freqIndex = 0;
+        for (int i = 0; i < freqs.size(); i++) {
+            freqLabels.add(freqs.get(i) / 1000 + " kHz");
+            if (freqs.get(i) == sel[0]) freqIndex = i;
+        }
+        ArrayAdapter<String> fa = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, freqLabels);
+        fa.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        freqSpinner.setAdapter(fa);
+        freqSpinner.setSelection(freqIndex);
+        inDialogRow(panel, "Carrier", freqSpinner);
+
+        Spinner repeatsSpinner = new Spinner(this);
+        ArrayAdapter<String> ra = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item,
+                new String[]{"1 frame", "2 frames", "3 frames"});
+        ra.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        repeatsSpinner.setAdapter(ra);
+        inDialogRow(panel, "Repeat", repeatsSpinner);
+
+        Spinner gapSpinner = new Spinner(this);
+        final int[] gaps = {25, 50, 120, 300};
+        ArrayAdapter<String> ga = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item,
+                new String[]{"25 ms", "50 ms", "120 ms", "300 ms"});
+        ga.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        gapSpinner.setAdapter(ga);
+        gapSpinner.setSelection(1);
+        inDialogRow(panel, "Gap", gapSpinner);
+
+        final TextView summary = text("", 11, MUTED, false);
+        summary.setPadding(0, dp(6), 0, dp(8));
+        panel.addView(summary);
+        updateSignalSummary(summary, testKey[0], sel);
+
+        keySpinner.setOnItemSelectedListener(new SimpleItemListener() {
+            @Override
+            public void onItemSelected(int position) {
+                testKey[0] = keys.get(position);
+                updateSignalSummary(summary, testKey[0], sel);
+            }
+        });
+        freqSpinner.setOnItemSelectedListener(new SimpleItemListener() {
+            @Override
+            public void onItemSelected(int position) {
+                sel[0] = freqs.get(position);
+                updateSignalSummary(summary, testKey[0], sel);
+            }
+        });
+        repeatsSpinner.setOnItemSelectedListener(new SimpleItemListener() {
+            @Override
+            public void onItemSelected(int position) {
+                sel[1] = position + 1;
+                updateSignalSummary(summary, testKey[0], sel);
+            }
+        });
+        gapSpinner.setOnItemSelectedListener(new SimpleItemListener() {
+            @Override
+            public void onItemSelected(int position) {
+                sel[2] = gaps[position];
+                updateSignalSummary(summary, testKey[0], sel);
+            }
+        });
+
+        DeviceStore.Calibration existing = DeviceStore.calibration(this, macroKey());
+        TextView saved = text(existing == null
+                ? "No calibration saved for this remote."
+                : "Saved: " + existing.freq / 1000 + " kHz \u00b7 "
+                + existing.repeats + " frame" + (existing.repeats == 1 ? "" : "s")
+                + " \u00b7 " + existing.gapMs + " ms gap",
+                11, existing == null ? MUTED : GREEN, false);
+        saved.setPadding(0, 0, 0, dp(8));
+        panel.addView(saved);
+
+        if (emitterState() == EMITTER_JACK) {
+            TextView jackNote = text("Jack blaster is active. Timing is generated in "
+                    + "software, so carrier and gap changes do not apply until you switch "
+                    + "back to the built-in emitter.", 11, MUTED, false);
+            jackNote.setPadding(0, 0, 0, dp(8));
+            panel.addView(jackNote);
+        }
+
+        Button test = highlightButton("Send test", 15, brandAccent);
+        test.setOnClickListener(v -> {
+            Code code = testKey[0].startsWith("ac_")
+                    ? acStateCode(testKey[0], current)
+                    : current.buttons.get(testKey[0]);
+            if (code == null) return;
+            if (sendRawTest(code, sel[0], sel[1], sel[2])) {
+                status.setText("Testing " + labelFor(testKey[0]) + " at "
+                        + sel[0] / 1000 + " kHz \u00b7 " + sel[1] + " frame"
+                        + (sel[1] == 1 ? "" : "s") + ".");
+            }
+        });
+        panel.addView(test, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+
+        Button save = styledButton("It worked \u2014 save this timing", BTN, 14);
+        save.setOnClickListener(v -> {
+            DeviceStore.Calibration cal = new DeviceStore.Calibration();
+            cal.freq = sel[0];
+            cal.repeats = sel[1];
+            cal.gapMs = sel[2];
+            DeviceStore.saveCalibration(this, macroKey(), cal);
+            status.setText("Saved " + sel[0] / 1000 + " kHz \u00b7 " + sel[1]
+                    + " frame" + (sel[1] == 1 ? "" : "s") + " for this remote.");
+            dialog.dismiss();
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        sl.topMargin = dp(8);
+        panel.addView(save, sl);
+
+        if (existing != null) {
+            Button clear = styledButton("Clear saved timing", BTN, 12);
+            clear.setTextColor(RED);
+            clear.setOnClickListener(v -> {
+                DeviceStore.clearCalibration(this, macroKey());
+                status.setText("Calibration cleared. Defaults are back.");
+                dialog.dismiss();
+            });
+            LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+            cl.topMargin = dp(8);
+            panel.addView(clear, cl);
+        }
+
+        Button close = styledButton("Close", BTN, 13);
+        close.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        cl.topMargin = dp(8);
+        panel.addView(close, cl);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            w.setAttributes(lp);
+        }
+    }
+
+    private void updateSignalSummary(TextView out, String key, int[] sel) {
+        out.setText("Test code: " + labelFor(key) + " \u00b7 " + sel[0] / 1000
+                + " kHz \u00b7 " + sel[1] + " frame" + (sel[1] == 1 ? "" : "s")
+                + " \u00b7 " + sel[2] + " ms gap");
+    }
+
+    private void inDialogRow(LinearLayout panel, String label, Spinner spinner) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(3), 0, dp(3));
+        TextView name = text(label, 13, MUTED, false);
+        name.setWidth(dp(72));
+        row.addView(name);
+        spinner.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        row.addView(spinner, new LinearLayout.LayoutParams(0, dp(46), 1f));
+        panel.addView(row);
+    }
+
+    // ---------------------------------------------------------- power doctor
+
+    private static class PowerCandidate {
+        String label;
+        Code code;
+        int repeats;
+    }
+
+    private List<PowerCandidate> powerCandidates() {
+        List<PowerCandidate> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        addPowerCandidate(out, seen, "This profile \u00b7 POWER OFF",
+                current.buttons.get("power_off"), 1);
+        addPowerCandidate(out, seen, "This profile \u00b7 POWER OFF \u00d72",
+                current.buttons.get("power_off"), 2);
+        addPowerCandidate(out, seen, "This profile \u00b7 POWER OFF \u00d73",
+                current.buttons.get("power_off"), 3);
+        addPowerCandidate(out, seen, "This profile \u00b7 POWER",
+                current.buttons.get("power"), 1);
+        addPowerCandidate(out, seen, "This profile \u00b7 POWER \u00d72",
+                current.buttons.get("power"), 2);
+
+        List<Brand> ordered = new ArrayList<>();
+        for (Brand b : brands) {
+            if (b.name.equals(current.brand)) ordered.add(0, b);
+            else ordered.add(b);
+        }
+        for (Brand b : ordered) {
+            for (Remote r : b.remotes) {
+                if (r == current) continue;
+                if (out.size() >= 28) break;
+                addPowerCandidate(out, seen, prettyBrand(b.name) + " \u2014 "
+                                + pretty(r.name) + " \u00b7 OFF",
+                        r.buttons.get("power_off"), 1);
+                addPowerCandidate(out, seen, prettyBrand(b.name) + " \u2014 "
+                                + pretty(r.name) + " \u00b7 POWER",
+                        r.buttons.get("power"), 1);
+            }
+        }
+        return out;
+    }
+
+    private void addPowerCandidate(List<PowerCandidate> out, Set<String> seen,
+                                   String label, Code code, int repeats) {
+        if (code == null || code.pattern == null) return;
+        String signature = code.freq + ":" + Arrays.hashCode(code.pattern) + ":" + repeats;
+        if (!seen.add(signature)) return;
+        PowerCandidate c = new PowerCandidate();
+        c.label = label;
+        c.code = code;
+        c.repeats = repeats;
+        out.add(c);
+    }
+
+    private void showPowerDoctor() {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        final List<PowerCandidate> candidates = powerCandidates();
+        if (candidates.isEmpty()) {
+            status.setText("No power codes to test in this category.");
+            return;
+        }
+
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(18));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("Power Doctor", 24, TEXT, true));
+        TextView note = text("For aircon units where Off only lowers the temperature. "
+                + "Send a candidate. If the unit turns off, save it as this remote's "
+                + "POWER OFF. If it just changes the temperature, that was a state "
+                + "frame \u2014 try the next one.", 12, MUTED, false);
+        note.setPadding(0, dp(4), 0, dp(10));
+        panel.addView(note);
+
+        final TextView counter = text("", 10, brandAccent, true);
+        counter.setLetterSpacing(0.10f);
+        panel.addView(counter);
+        final TextView candidateName = text("", 18, TEXT, true);
+        candidateName.setPadding(0, dp(2), 0, dp(10));
+        panel.addView(candidateName);
+
+        final int[] index = {0};
+        final Runnable show = () -> {
+            PowerCandidate c = candidates.get(index[0]);
+            counter.setText("CANDIDATE " + (index[0] + 1) + " OF " + candidates.size()
+                    + (c.repeats > 1 ? " \u00b7 \u00d7" + c.repeats : ""));
+            candidateName.setText(c.label);
+        };
+        show.run();
+
+        Button send = highlightButton("Send candidate", 15, brandAccent);
+        send.setOnClickListener(v -> {
+            PowerCandidate c = candidates.get(index[0]);
+            if (sendRawTest(c.code, c.code.freq, c.repeats, frameGapMs())) {
+                status.setText("Sent candidate " + (index[0] + 1) + " \u00b7 " + c.label);
+            }
+        });
+        panel.addView(send, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+
+        Button save = styledButton("This turned it off \u2014 save", BTN, 14);
+        save.setTextColor(GREEN);
+        save.setOnClickListener(v -> {
+            PowerCandidate c = candidates.get(index[0]);
+            String key = macroKey();
+            DeviceStore.putPatch(this, key, "power_off", c.code.freq, c.code.pattern);
+            DeviceStore.setPowerOffRepeats(this, key, c.repeats);
+            current.buttons.put("power_off", c.code);
+            status.setText("Saved POWER OFF from " + c.label + ".");
+            dialog.dismiss();
+            renderControls();
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        sl.topMargin = dp(8);
+        panel.addView(save, sl);
+
+        Button next = styledButton("Next candidate", BTN, 13);
+        next.setOnClickListener(v -> {
+            index[0] = (index[0] + 1) % candidates.size();
+            show.run();
+        });
+        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        nl.topMargin = dp(8);
+        panel.addView(next, nl);
+
+        Button close = styledButton("Close", BTN, 13);
+        close.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        cl.topMargin = dp(8);
+        panel.addView(close, cl);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            w.setAttributes(lp);
+        }
+    }
+
+    // -------------------------------------------------------------- add keys
+
+    private void showAddKey() {
+        if (current == null) {
+            status.setText("Pick a device remote first.");
+            return;
+        }
+        List<Brand> ordered = new ArrayList<>();
+        for (Brand b : brands) {
+            if (b.name.equals(current.brand)) ordered.add(0, b);
+            else ordered.add(b);
+        }
+        final Map<String, Remote> sources = new LinkedHashMap<>();
+        for (Brand b : ordered) {
+            for (Remote r : b.remotes) {
+                if (r == current) continue;
+                for (String key : r.buttons.keySet()) {
+                    if (key.startsWith("__")) continue;
+                    if ("power".equals(key) || "power_off".equals(key)) continue;
+                    if (current.buttons.containsKey(key)) continue;
+                    if (!sources.containsKey(key)) sources.put(key, r);
+                }
+            }
+        }
+        if (sources.isEmpty()) {
+            status.setText("This remote already carries every extra button in "
+                    + current.category + ".");
+            return;
+        }
+
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(18), dp(18), dp(18), dp(16));
+        panel.setBackground(Surface.raised(this, 28, CARD, palette.rim(),
+                palette.gloss(0.10f)));
+        Surface.elevate(panel, 28, 12);
+
+        panel.addView(text("Add a missing button", 22, TEXT, true));
+        TextView note = text("Copied from another " + current.category + " profile. "
+                + "It is a real captured code, but not guaranteed to match your exact "
+                + "model \u2014 test it before relying on it.", 11, MUTED, false);
+        note.setPadding(0, dp(2), 0, dp(8));
+        panel.addView(note);
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list);
+        panel.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        List<String> keys = new ArrayList<>(sources.keySet());
+        Collections.sort(keys, (a, b) -> {
+            int rank = Integer.compare(buttonRank(a), buttonRank(b));
+            return rank != 0 ? rank : labelFor(a).compareToIgnoreCase(labelFor(b));
+        });
+        for (final String key : keys) {
+            final Remote source = sources.get(key);
+            final Code code = source.buttons.get(key);
+            if (code == null) continue;
+            list.addView(toolRow(labelFor(key),
+                    prettyBrand(source.brand) + " \u2014 " + pretty(source.name),
+                    v -> {
+                        DeviceStore.putPatch(this, macroKey(), key, code.freq, code.pattern);
+                        try {
+                            JSONObject patch = DeviceStore.patches(this, macroKey());
+                            JSONArray added = patch.optJSONArray("__added");
+                            if (added == null) added = new JSONArray();
+                            boolean has = false;
+                            for (int i = 0; i < added.length(); i++) {
+                                if (key.equals(added.optString(i))) has = true;
+                            }
+                            if (!has) added.put(key);
+                            patch.put("__added", added);
+                            DeviceStore.savePatches(this, macroKey(), patch);
+                        } catch (Exception ignored) {
+                        }
+                        current.buttons.put(key, code);
+                        status.setText("Added " + labelFor(key) + " from "
+                                + prettyBrand(source.brand) + ".");
+                        dialog.dismiss();
+                        renderControls();
+                    }));
+        }
+
+        try {
+            JSONObject patch = DeviceStore.patches(this, macroKey());
+            JSONArray added = patch.optJSONArray("__added");
+            if (added != null && added.length() > 0) {
+                panel.addView(toolRow("Remove added buttons",
+                        added.length() + " button" + (added.length() == 1 ? "" : "s")
+                                + " added by you", v -> {
+                            try {
+                                JSONObject p = DeviceStore.patches(this, macroKey());
+                                JSONArray list2 = p.optJSONArray("__added");
+                                if (list2 != null) {
+                                    for (int i = 0; i < list2.length(); i++) {
+                                        String key = list2.optString(i);
+                                        current.buttons.remove(key);
+                                        p.remove(key);
+                                    }
+                                }
+                                p.remove("__added");
+                                if (p.length() == 0) DeviceStore.clearPatches(this, macroKey());
+                                else DeviceStore.savePatches(this, macroKey(), p);
+                            } catch (Exception ignored) {
+                            }
+                            status.setText("Removed the buttons you added.");
+                            dialog.dismiss();
+                            renderControls();
+                        }));
+            }
+        } catch (Exception ignored) {
+        }
+
+        Button close = styledButton("Close", BTN, 13);
+        close.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        cl.topMargin = dp(8);
+        panel.addView(close, cl);
+
+        dialog.setContentView(panel);
+        dialog.show();
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+            lp.copyFrom(w.getAttributes());
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.94f);
+            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.80f);
+            w.setAttributes(lp);
+        }
+    }
+
     // ------------------------------------------------------------------ more
 
     private void showMore() {
@@ -2515,6 +4532,38 @@ public class MainActivity extends Activity {
                     dialog.dismiss();
                     startActivityForResult(
                             new Intent(this, LearnActivity.class), REQ_LEARN);
+                }));
+        panel.addView(toolRow("Macros",
+                "Sequences for this remote \u00b7 loop forever or N times", v -> {
+                    dialog.dismiss();
+                    showMacroPage();
+                }));
+        panel.addView(toolRow("Test Storm",
+                "Sweep every button in a shuffled order", v -> {
+                    dialog.dismiss();
+                    showStormDialog();
+                }));
+        panel.addView(toolRow("Add a missing button",
+                "Pull a key from a sibling profile", v -> {
+                    dialog.dismiss();
+                    showAddKey();
+                }));
+        panel.addView(toolRow("Signal Lab",
+                "Find the carrier, frames and gap that work", v -> {
+                    dialog.dismiss();
+                    showSignalLab();
+                }));
+        if ("Air Conditioner".equals(current == null ? "" : current.category)) {
+            panel.addView(toolRow("Power Doctor",
+                    "Fix an aircon Off code that only changes temperature", v -> {
+                        dialog.dismiss();
+                        showPowerDoctor();
+                    }));
+        }
+        panel.addView(toolRow("Web shortcut",
+                "Address the Web button opens", v -> {
+                    dialog.dismiss();
+                    editWebUrl();
                 }));
         panel.addView(toolRow("IR & scan settings", "Boost and scan speed", v -> {
             dialog.dismiss();
@@ -2879,8 +4928,9 @@ public class MainActivity extends Activity {
             remote.name = name;
             JSONObject btns = o.optJSONObject("buttons");
             if (btns == null) continue;
-            for (String key : BUTTON_ORDER) {
-                if (!btns.has(key)) continue;
+            Iterator<String> learnedKeys = btns.keys();
+            while (learnedKeys.hasNext()) {
+                String key = learnedKeys.next();
                 try {
                     JSONArray arrCode = btns.getJSONArray(key);
                     Code code = new Code();
@@ -2892,7 +4942,7 @@ public class MainActivity extends Activity {
                 } catch (Exception ignored) {
                 }
             }
-            if (!remote.buttons.containsKey("power")) continue;
+            if (remote.buttons.isEmpty()) continue;
             learned.remotes.add(remote);
         }
         refreshCounts();
@@ -3253,6 +5303,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        // Never keep firing IR from the background: an infinite macro or Test
+        // Storm would otherwise run until the battery dies.
+        macroCancelled.set(true);
+        stormCancelled.set(true);
         repeatKey = null;
         handler.removeCallbacks(repeatRunnable);
         if (jackPlug != null) {
@@ -3265,8 +5319,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         running = false;
+        macroCancelled.set(true);
+        stormCancelled.set(true);
         repeatKey = null;
         handler.removeCallbacksAndMessages(null);
+        if (stormDialog != null && stormDialog.isShowing()) stormDialog.dismiss();
         dismissScanner();
         irExecutor.shutdownNow();
         super.onDestroy();

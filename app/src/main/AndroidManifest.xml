@@ -4,6 +4,15 @@
     <uses-permission android:name="android.permission.TRANSMIT_IR" />
     <uses-feature android:name="android.hardware.consumerir" android:required="false" />
 
+    <!-- Android 11+ package visibility: lets the shortcut row open installed
+         streaming apps directly instead of always falling back to the browser. -->
+    <queries>
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
+        <package android:name="com.microsoft.copilot" />
+    </queries>
+
     <!-- Only used by the optional update check. Every remote feature works fully offline. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
