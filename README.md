@@ -29,15 +29,16 @@ The APK is sideloaded, so Android may show a warning. Only install builds from
 this repository's Releases.
 
 > Upgrading from an earlier v1.4 APK? 1.5 installs straight over it and keeps your
-> saved devices. Only the original debug-signed build has to be uninstalled first —
-> Android blocks in-place updates when the signing key changes.
+> saved devices. Only a build signed with a different key has to be uninstalled
+> first — Android blocks in-place updates when the signing key changes.
 >
-> **1.7.0 (versionCode 24) is debug-signed.** It installs over an earlier
-> debug-signed build and keeps saved remotes, macros, themes and settings. If your
-> phone has the **release-signed 1.6.5 APK** from Releases, Android will refuse the
-> update with a signature conflict. Uninstall 1.6.5 first; that clears saved remotes
-> and macros because backups are off. The original release key is not available, so
-> no 1.7 build can update that package in place.
+> **1.7.0 (versionCode 25) is release-signed** with a new `CN=IR Voider` key
+> generated for this release. It installs over itself and future builds signed with
+> the same key, keeping saved remotes, macros, themes and settings. Because the
+> original 1.6.5 key is gone, this one-time move needs an uninstall first if your
+> phone has **1.6.5 or an earlier debug-signed 1.7.0 build**. That clears saved
+> remotes and macros because backups are off. After this install, updates work
+> normally again.
 
 ## What's new in 1.7
 
