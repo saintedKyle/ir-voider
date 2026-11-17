@@ -10,11 +10,11 @@
   <main class="wrap">
     <p><a href="index.html">← IR Voider</a></p>
     <h1>Privacy Policy</h1>
-    <p><strong>Effective: 2026-10-30</strong></p>
+    <p><strong>Effective: 2026-11-17</strong></p>
     <p>IR Voider is an offline Android IR remote. It does not collect, transmit or sell
-      personal data. Every remote feature works with the radio switched off. The single
-      exception is the optional update check described below, which you can turn off in
-      one tap.</p>
+      personal data. Every remote feature works with the radio switched off. The optional
+      update check and the optional shutdown sound are the only features that use the
+      network; both can be turned off in one tap.</p>
 
     <h2>What the app accesses</h2>
     <ul>
@@ -24,7 +24,8 @@
         file picker gives the app temporary read access to that single file. The file is
         parsed locally and is not uploaded.</li>
       <li><strong>Network</strong> — <code>INTERNET</code> and <code>ACCESS_NETWORK_STATE</code>,
-        used only by the optional update check. See the next section.</li>
+        used only by the optional update check and the optional shutdown sound. See the next
+        two sections.</li>
     </ul>
 
     <h2>The optional update check</h2>
@@ -39,15 +40,29 @@
       <li>It never downloads or installs anything. If a newer version exists the app shows
         a dialog and you choose Download, Skip this version or Not now.</li>
       <li>Turn it off under <strong>≡ More → Updates → Auto update check</strong>. With it off
-        the app makes no network request of any kind, and the <code>INTERNET</code> permission
-        goes unused.</li>
+        the app makes no update request, and the <code>INTERNET</code> permission is used
+        only if you turn on the shutdown sound.</li>
+    </ul>
+
+    <h2>The optional shutdown sound</h2>
+    <ul>
+      <li>It is off by default and is set under <strong>≡ More → Shutdown sound</strong>.</li>
+      <li>When it is on and you press the TV's Power Off button, the app requests the single
+        <code>https://</code> audio URL you pasted, so the phone can play that clip before
+        sending the IR code.</li>
+      <li>The app sends no device id, account, remote data or settings with that request. The
+        host of the audio file sees the request like any web visitor would, including your IP
+        address and the URL path.</li>
+      <li>Turn it off, or clear the URL, under <strong>≡ More → Shutdown sound</strong>. The app
+        then fetches no audio.</li>
     </ul>
 
     <h2>What the app stores</h2>
     <p>On your device only:</p>
     <ul>
       <li>your selected category, brand, model and matched remote;</li>
-      <li>saved device names, types and settings (IR boost, scan speed);</li>
+      <li>saved device names, types and settings (IR boost, scan speed, Web address,
+        shutdown-sound toggle and URL);</li>
       <li>imported <code>.ir</code> remotes.</li>
     </ul>
     <p>This data stays in the app's private storage. Android backup is disabled, so it
@@ -55,7 +70,8 @@
 
     <h2>What the app does not do</h2>
     <ul>
-      <li>No network use beyond the optional update check above.</li>
+      <li>No network use beyond the optional update check and the audio URL you supply for
+        the optional shutdown sound.</li>
       <li>No accounts, ads, analytics, crash reporting or third-party SDKs.</li>
       <li>No location, contacts, camera, microphone or storage-wide access.</li>
       <li>No tracking of which buttons you press.</li>
