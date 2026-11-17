@@ -17,8 +17,10 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Insets;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -26,6 +28,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.hardware.ConsumerIrManager;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,6 +43,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -47,6 +52,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -264,6 +270,41 @@ public class MainActivity extends Activity {
     private int brandAccent = 0;
     private final Random stormRandom = new Random();
 
+    private TextView retroBarView, retroStatusView, retroLogView, retroCursorView;
+    private long retroStart;
+    private int retroPercent;
+    private Runnable retroFinish;
+    private MediaPlayer shutdownPlayer;
+    private int shutdownGeneration;
+    private Runnable shutdownFallback;
+
+    private static final String[] RETRO_LINES = {
+            "MOUNTING REMOTE TAPES...",
+            "READING 5,666 REMOTES...",
+            "INDEXING 90,054 CODES...",
+            "CALIBRATING 38 kHz CARRIER...",
+            "INSERT COIN TO CONTINUE"
+    };
+
+    /** Fake CRT progress: races to 94%, then waits for the real load. */
+    private final Runnable retroTick = new Runnable() {
+        @Override
+        public void run() {
+            if (retroBarView == null) return;
+            long elapsed = SystemClock.uptimeMillis() - retroStart;
+            int next = (int) Math.min(94, 6 + elapsed / 18);
+            if (next > retroPercent) retroPercent = next;
+            retroBarView.setText(retroBar());
+            int phase = (int) ((elapsed / 800) % RETRO_LINES.length);
+            if (retroStatusView != null) retroStatusView.setText(RETRO_LINES[phase]);
+            if (retroCursorView != null) {
+                retroCursorView.setVisibility((elapsed / 360) % 2 == 0
+                        ? View.VISIBLE : View.INVISIBLE);
+            }
+            handler.postDelayed(this, 110);
+        }
+    };
+
     private final Runnable timerTick = new Runnable() {
         @Override
         public void run() {
@@ -300,11 +341,7 @@ public class MainActivity extends Activity {
         }
         Palette.applyStatusIcons(getWindow(), palette.light);
 
-        TextView loading = text("Loading IR database\u2026", 18, MUTED, false);
-        loading.setGravity(Gravity.CENTER);
-        loading.setBackgroundColor(BG);
-        loading.setPadding(dp(48), dp(220), dp(48), dp(48));
-        setContentView(loading);
+        showRetroLoader();
 
         new Thread(() -> {
             String error = null;
@@ -314,14 +351,7 @@ public class MainActivity extends Activity {
                 error = e.toString();
             }
             final String err = error;
-            runOnUiThread(() -> {
-                if (err != null) {
-                    loading.setText("Could not load remote database:\n" + err);
-                } else {
-                    buildUi();
-                    maybeCheckForUpdate();
-                }
-            });
+            runOnUiThread(() -> finishRetroLoad(err));
         }).start();
     }
 
@@ -565,6 +595,178 @@ public class MainActivity extends Activity {
                 new int[]{BG, palette.bgBottom});
         bg.setShape(GradientDrawable.RECTANGLE);
         return bg;
+    }
+
+    // ------------------------------------------------------------ retro boot
+
+    private TextView mono(String value, float size, int color, boolean bold) {
+        TextView tv = new TextView(this);
+        tv.setText(value);
+        tv.setTextSize(size);
+        tv.setTextColor(color);
+        tv.setTypeface(Typeface.MONOSPACE, bold ? Typeface.BOLD : Typeface.NORMAL);
+        tv.setLineSpacing(0f, 1.05f);
+        return tv;
+    }
+
+    private String retroBar() {
+        int filled = Math.max(0, Math.min(10, retroPercent / 10));
+        StringBuilder out = new StringBuilder("[");
+        for (int i = 0; i < 10; i++) out.append(i < filled ? "\u25A0" : "\u00B7");
+        out.append("] ");
+        if (retroPercent >= 100) out.append("100%");
+        else out.append(String.format(Locale.US, "%3d%%", retroPercent));
+        return out.toString();
+    }
+
+    private void showRetroLoader() {
+        retroStart = SystemClock.uptimeMillis();
+        retroPercent = 0;
+        // The boot screen is always dark amber, whatever theme is active.
+        Palette.applyStatusIcons(getWindow(), false);
+
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.rgb(7, 5, 4));
+        root.addView(new ScanlineView(this), new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(dp(26), dp(34), dp(26), dp(26));
+
+        Space top = new Space(this);
+        content.addView(top, new LinearLayout.LayoutParams(1, 0, 1f));
+
+        TextView brand = mono("IR VOIDER", 34, ACCENT, true);
+        brand.setLetterSpacing(0.20f);
+        brand.setGravity(Gravity.CENTER);
+        content.addView(brand);
+
+        TextView sub = mono("INFRARED REMOTE SYSTEM // 198X", 9, MUTED, false);
+        sub.setGravity(Gravity.CENTER);
+        sub.setLetterSpacing(0.12f);
+        sub.setPadding(0, dp(4), 0, dp(26));
+        content.addView(sub);
+
+        LinearLayout screen = new LinearLayout(this);
+        screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setPadding(dp(16), dp(18), dp(16), dp(18));
+        GradientDrawable box = new GradientDrawable();
+        box.setColor(Color.rgb(12, 9, 5));
+        box.setCornerRadius(dp(10));
+        box.setStroke(dp(1), Surface.blend(ACCENT, BG, 0.35f));
+        screen.setBackground(box);
+
+        TextView label = mono("LOADING IR DATABASE", 10, ACCENT, true);
+        label.setLetterSpacing(0.18f);
+        screen.addView(label);
+
+        retroBarView = mono(retroBar(), 17, TEXT, true);
+        retroBarView.setPadding(0, dp(12), 0, dp(6));
+        screen.addView(retroBarView);
+
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        retroStatusView = mono(RETRO_LINES[0], 10, MUTED, false);
+        statusRow.addView(retroStatusView, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        retroCursorView = mono("\u2588", 12, ACCENT, true);
+        statusRow.addView(retroCursorView);
+        screen.addView(statusRow);
+
+        retroLogView = mono("> 5,666 REMOTES / 90,054 CODES\n> 2,050 BRANDS / 40 CATEGORIES",
+                9, Surface.blend(MUTED, ACCENT, 0.25f), false);
+        retroLogView.setPadding(0, dp(14), 0, 0);
+        retroLogView.setLineSpacing(dp(2), 1f);
+        screen.addView(retroLogView);
+
+        content.addView(screen, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        Space bottom = new Space(this);
+        content.addView(bottom, new LinearLayout.LayoutParams(1, 0, 1f));
+
+        TextView footer = mono("\u00A9 198X POGING KYLE  \u00B7  GPL-3.0", 8, MUTED, false);
+        footer.setGravity(Gravity.CENTER);
+        content.addView(footer);
+
+        root.addView(content, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // A slow cathode beam, because a still loading screen is no fun.
+        View beam = new View(this);
+        GradientDrawable beamBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x00FFB000, 0x55FFB000, 0x00FFB000});
+        beam.setBackground(beamBg);
+        FrameLayout.LayoutParams beamLp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(2));
+        beamLp.gravity = Gravity.TOP;
+        root.addView(beam, beamLp);
+        TranslateAnimation sweep = new TranslateAnimation(0, 0, 0,
+                getResources().getDisplayMetrics().heightPixels);
+        sweep.setDuration(2800);
+        sweep.setRepeatCount(Animation.INFINITE);
+        sweep.setRepeatMode(Animation.RESTART);
+        sweep.setInterpolator(new LinearInterpolator());
+        beam.startAnimation(sweep);
+
+        setContentView(root);
+        handler.post(retroTick);
+    }
+
+    private void finishRetroLoad(String error) {
+        long wait = Math.max(0, 900 - (SystemClock.uptimeMillis() - retroStart));
+        retroFinish = () -> {
+            handler.removeCallbacks(retroTick);
+            if (isFinishing() || isDestroyed()) return;
+            if (error != null) {
+                if (retroBarView != null) retroBarView.setText("[//////////] ERR");
+                if (retroStatusView != null) {
+                    retroStatusView.setTextColor(RED);
+                    retroStatusView.setText("BOOT FAILURE");
+                }
+                if (retroLogView != null) {
+                    retroLogView.setText("Could not load remote database:\n" + error);
+                }
+                if (retroCursorView != null) retroCursorView.setVisibility(View.GONE);
+                return;
+            }
+            retroPercent = 100;
+            if (retroBarView != null) retroBarView.setText(retroBar());
+            if (retroStatusView != null) retroStatusView.setText("READY.");
+            if (retroCursorView != null) retroCursorView.setVisibility(View.VISIBLE);
+            // Let the full bar and READY sit on screen for a beat.
+            handler.postDelayed(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                Palette.applyStatusIcons(getWindow(), palette.light);
+                buildUi();
+                maybeCheckForUpdate();
+            }, 320);
+        };
+        handler.postDelayed(retroFinish, wait);
+    }
+
+    /** Horizontal CRT scanlines over the boot screen. */
+    private static class ScanlineView extends View {
+        private final Paint paint = new Paint();
+        private final int step;
+
+        ScanlineView(Context c) {
+            super(c);
+            paint.setColor(0x12FFB000);
+            step = Math.max(2, (int) (3 * c.getResources().getDisplayMetrics().density));
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            int w = getWidth();
+            for (int y = 0; y < getHeight(); y += step) {
+                canvas.drawRect(0, y, w, y + 1, paint);
+            }
+        }
     }
 
     private void buildUi() {
@@ -1586,16 +1788,120 @@ public class MainActivity extends Activity {
         if (!isPower && DeviceStore.calibration(this, macroKey()) != null) {
             repeat = true;
         }
-        if ("power_off".equals(key)) {
-            int fixed = DeviceStore.powerOffRepeats(this, macroKey());
-            if (fixed > 1) transmit(code, fixed);
-            else transmit(code, repeat);
-        } else {
-            transmit(code, repeat);
-        }
-        status.setText(key.startsWith("ac_")
+        final boolean repeats = repeat;
+        final int fixed = "power_off".equals(key)
+                ? DeviceStore.powerOffRepeats(this, macroKey()) : 1;
+        final String sent = key.startsWith("ac_")
                 ? "Sent " + labelFor(key) + " \u00b7 target " + acTargetLabel() + "."
-                : "Sent " + labelFor(key) + ".");
+                : "Sent " + labelFor(key) + ".";
+        final Runnable emit = () -> {
+            if ("power_off".equals(key)) {
+                if (fixed > 1) transmit(code, fixed);
+                else transmit(code, repeats);
+            } else {
+                transmit(code, repeats);
+            }
+            status.setText(sent);
+        };
+
+        // A shutdown clip belongs to the TV's own Power Off button. It plays on the
+        // phone first, then the IR goes out, so the picture survives the fanfare.
+        // Most TV captures only carry a Power toggle, so that toggle counts too.
+        boolean tvOff = "power_off".equals(key)
+                || ("power".equals(key) && !current.buttons.containsKey("power_off"));
+        if (tvOff && "TV".equals(current.category)
+                && DeviceStore.shutdownSound(this)) {
+            String sound = DeviceStore.shutdownSoundUrl(this);
+            if (!sound.isEmpty()) {
+                playShutdownSound(sound, emit);
+                status.setText("Playing the shutdown sound, then sending Power Off\u2026");
+                return;
+            }
+        }
+        emit.run();
+    }
+
+    // --------------------------------------------------------- shutdown sound
+
+    /**
+     * Plays the chosen clip through the phone, then sends the Off code. A network
+     * clip can stall or error, so watchdogs send the IR anyway instead of leaving
+     * the TV on. IR itself is one-way; this only controls the order of the two.
+     */
+    private void playShutdownSound(String url, Runnable then) {
+        cancelShutdownSound();
+        final int gen = shutdownGeneration;
+        final AtomicBoolean fired = new AtomicBoolean(false);
+        final Runnable fire = () -> {
+            if (fired.compareAndSet(false, true)) {
+                handler.removeCallbacks(shutdownFallback);
+                shutdownFallback = null;
+                then.run();
+            }
+        };
+        try {
+            MediaPlayer player = new MediaPlayer();
+            shutdownPlayer = player;
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build());
+            player.setOnPreparedListener(mp -> {
+                if (gen != shutdownGeneration) return;
+                handler.removeCallbacks(shutdownFallback);
+                shutdownFallback = () -> {
+                    if (gen != shutdownGeneration) return;
+                    releaseShutdownPlayer();
+                    fire.run();
+                };
+                handler.postDelayed(shutdownFallback, 15000);
+                mp.start();
+            });
+            player.setOnCompletionListener(mp -> {
+                if (gen != shutdownGeneration) return;
+                releaseShutdownPlayer();
+                fire.run();
+            });
+            player.setOnErrorListener((mp, what, extra) -> {
+                if (gen != shutdownGeneration) return true;
+                releaseShutdownPlayer();
+                fire.run();
+                return true;
+            });
+            player.setDataSource(url);
+            player.prepareAsync();
+        } catch (Exception e) {
+            releaseShutdownPlayer();
+            fire.run();
+            return;
+        }
+        // Four and a half seconds to start; then the Off code goes regardless.
+        shutdownFallback = () -> {
+            if (gen != shutdownGeneration) return;
+            releaseShutdownPlayer();
+            fire.run();
+        };
+        handler.postDelayed(shutdownFallback, 4500);
+    }
+
+    private void releaseShutdownPlayer() {
+        if (shutdownPlayer == null) return;
+        try {
+            shutdownPlayer.reset();
+        } catch (Exception ignored) {
+        }
+        try {
+            shutdownPlayer.release();
+        } catch (Exception ignored) {
+        }
+        shutdownPlayer = null;
+    }
+
+    private void cancelShutdownSound() {
+        shutdownGeneration++;
+        handler.removeCallbacks(shutdownFallback);
+        shutdownFallback = null;
+        releaseShutdownPlayer();
     }
 
     private String acTargetLabel() {
@@ -2618,11 +2924,15 @@ public class MainActivity extends Activity {
                     continue;
                 }
                 final String kind = items[n][1];
-                boolean ir = current != null && current.buttons.containsKey(kind);
+                boolean chromeOnly = "prime".equals(kind) || "copilot".equals(kind)
+                        || "web".equals(kind);
+                boolean ir = !chromeOnly && current != null
+                        && current.buttons.containsKey(kind);
                 Button b = styledButton(items[n][0],
                         ir ? Surface.blend(BTN, brandAccent, 0.16f) : BTN, 13);
                 if (ir) b.setTextColor(brandAccent);
-                b.setContentDescription(items[n][0] + " shortcut");
+                b.setContentDescription(items[n][0]
+                        + (chromeOnly ? " shortcut, opens Chrome" : " shortcut"));
                 b.setOnClickListener(v -> activateShortcut(kind));
                 if ("web".equals(kind)) {
                     b.setOnLongClickListener(v -> {
@@ -2646,26 +2956,20 @@ public class MainActivity extends Activity {
         }
         if ("netflix".equals(kind)) {
             if (sendKeyIfPresent("netflix")) return;
-            openPackageOrUrl("com.netflix.mediaclient", "https://www.netflix.com",
-                    "Netflix");
+            openInChrome("https://www.netflix.com", "Netflix");
         } else if ("youtube".equals(kind)) {
             if (sendKeyIfPresent("youtube")) return;
-            openPackageOrUrl("com.google.android.youtube", "https://www.youtube.com",
-                    "YouTube");
+            openInChrome("https://www.youtube.com", "YouTube");
         } else if ("prime".equals(kind)) {
-            if (sendKeyIfPresent("prime")) return;
-            openPackageOrUrl("com.amazon.avod.thirdpartyclient",
-                    "https://www.primevideo.com", "Prime Video");
+            openInChrome("https://www.primevideo.com", "Prime Video");
         } else if ("apps".equals(kind)) {
             if (sendKeyIfPresent("apps")) return;
             status.setText("This profile has no Apps key. Add one from a sibling "
                     + "model in More \u2192 Add a missing button.");
         } else if ("copilot".equals(kind)) {
-            openPackageOrUrl("com.microsoft.copilot",
-                    "https://copilot.microsoft.com", "Copilot");
+            openInChrome("https://copilot.microsoft.com", "Copilot");
         } else if ("web".equals(kind)) {
-            openLink(DeviceStore.webUrl(this));
-            status.setText("Opening " + DeviceStore.webUrl(this));
+            openInChrome(DeviceStore.webUrl(this), "Web shortcut");
         }
     }
 
@@ -2675,20 +2979,29 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private void openPackageOrUrl(String pkg, String url, String name) {
+    /**
+     * Prime, Copilot and Web have no reliable IR key, so they always open in Chrome
+     * on the phone. Chrome is addressed by package first; any browser is the
+     * fallback for phones without Chrome. IR cannot carry a URL to a TV.
+     */
+    private void openInChrome(String url, String name) {
+        if (url == null || url.isEmpty()) return;
+        Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent chrome = new Intent(view);
+        chrome.setPackage("com.android.chrome");
         try {
-            Intent launch = getPackageManager().getLaunchIntentForPackage(pkg);
-            if (launch != null) {
-                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(launch);
-                status.setText("Opened " + name + " on this phone.");
-                return;
-            }
+            startActivity(chrome);
+            status.setText("Opened " + name + " in Chrome on this phone.");
+            return;
         } catch (Exception ignored) {
         }
-        openLink(url);
-        status.setText("This profile has no " + name + " IR key \u2014 opened it "
-                + "on this phone.");
+        try {
+            startActivity(view);
+            status.setText("Opened " + name + " on this phone.");
+        } catch (Exception e) {
+            status.setText("No browser on this phone can open " + name + ".");
+        }
     }
 
     private void editWebUrl() {
@@ -2761,6 +3074,117 @@ public class MainActivity extends Activity {
 
         dialog.setContentView(panel);
         dialog.show();
+    }
+
+    private void showShutdownSoundDialog() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = sheetPanel("TV shutdown sound",
+                "A short clip plays on this phone, then Power Off goes to the TV.");
+
+        panel.addView(switchRow("Play before Power Off",
+                "TV profile only \u00b7 sound comes from this phone",
+                DeviceStore.shutdownSound(this), on -> {
+                    DeviceStore.setShutdownSound(this, on);
+                    status.setText(on ? "Shutdown sound is on."
+                            : "Shutdown sound is off.");
+                }));
+
+        TextView note = text("Paste a direct audio link \u2014 the file itself, not a "
+                + "YouTube or web page. Media volume controls how loud it is. A slow "
+                + "or broken link never blocks the Off code. On a TV profile with one "
+                + "Power toggle, the clip plays on that tap too, because IR cannot "
+                + "tell on from off.", 11, MUTED, false);
+        note.setPadding(0, dp(4), 0, dp(10));
+        panel.addView(note);
+
+        EditText input = new EditText(this);
+        input.setText(DeviceStore.shutdownSoundUrl(this));
+        input.setHint("https://example.com/shutdown.mp3");
+        input.setHintTextColor(MUTED);
+        input.setTextColor(TEXT);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        panel.addView(input, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        Button test = styledButton("Test sound", BTN, 13);
+        test.setOnClickListener(v -> {
+            String url = audioUrl(input);
+            if (url == null) return;
+            status.setText("Playing a test clip on this phone\u2026");
+            playShutdownSound(url, () -> status.setText("Test clip finished."));
+        });
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, dp(46), 1f);
+        tl.setMargins(0, dp(12), dp(4), 0);
+        actions.addView(test, tl);
+
+        Button save = highlightButton("Save", 14);
+        save.setOnClickListener(v -> {
+            String raw = input.getText().toString().trim();
+            if (raw.isEmpty()) {
+                if (DeviceStore.shutdownSound(this)) {
+                    input.setError("Add a sound URL or turn the toggle off");
+                    return;
+                }
+                DeviceStore.setShutdownSoundUrl(this, "");
+                status.setText("Shutdown sound URL cleared.");
+                dialog.dismiss();
+                return;
+            }
+            String url = audioUrl(input);
+            if (url == null) return;
+            DeviceStore.setShutdownSoundUrl(this, url);
+            input.setText(url);
+            status.setText(DeviceStore.shutdownSound(this)
+                    ? "Shutdown sound saved. It plays before Power Off."
+                    : "Shutdown sound saved. Turn the toggle on to use it.");
+            dialog.dismiss();
+        });
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(0, dp(46), 1f);
+        sl.setMargins(dp(4), dp(12), 0, 0);
+        actions.addView(save, sl);
+        panel.addView(actions);
+
+        Button cancel = styledButton("Close", BTN, 13);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        cl.topMargin = dp(8);
+        panel.addView(cancel, cl);
+
+        showSheet(dialog, panel, 0.82f);
+    }
+
+    /** @return a normalised https audio URL, or null after flagging the field. */
+    private String audioUrl(EditText input) {
+        String url = input.getText().toString().trim();
+        if (url.isEmpty()) {
+            input.setError("Paste an audio link");
+            return null;
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "https://" + url;
+        }
+        if (!url.startsWith("https://")) {
+            input.setError("Use an https:// link");
+            return null;
+        }
+        String path = url.toLowerCase(Locale.US);
+        int cut = path.indexOf('?');
+        if (cut >= 0) path = path.substring(0, cut);
+        cut = path.indexOf('#');
+        if (cut >= 0) path = path.substring(0, cut);
+        if (!(path.endsWith(".mp3") || path.endsWith(".m4a") || path.endsWith(".aac")
+                || path.endsWith(".ogg") || path.endsWith(".wav")
+                || path.endsWith(".opus") || path.endsWith(".flac"))) {
+            input.setError("Link must end at an audio file: .mp3, .m4a, .ogg or .wav");
+            return null;
+        }
+        return url;
     }
 
     private List<Page> buildPages() {
@@ -4459,10 +4883,119 @@ public class MainActivity extends Activity {
     private void showMore() {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Color.TRANSPARENT);
-        scroll.setFillViewport(true);
+        LinearLayout panel = sheetPanel("More",
+                "Grouped so the common things sit one tap away.");
 
+        panel.addView(sectionLabel("REMOTE & DEVICE"));
+        panel.addView(tileRow(
+                tile("Device type", category.name + " \u00b7 tap to change",
+                        v -> {
+                            dialog.dismiss();
+                            showCategoryPicker();
+                        }),
+                tile("Devices", "Switch, name, delete",
+                        v -> {
+                            dialog.dismiss();
+                            startActivity(new Intent(this, ConfigsActivity.class));
+                        })));
+        panel.addView(tileRow(
+                tile("Fetch remote", "Import a .ir capture",
+                        v -> {
+                            dialog.dismiss();
+                            startActivityForResult(
+                                    new Intent(this, LearnActivity.class), REQ_LEARN);
+                        }),
+                tile("Web shortcut", "Chrome link for Web",
+                        v -> {
+                            dialog.dismiss();
+                            editWebUrl();
+                        })));
+        panel.addView(tileRow(
+                tile("Shutdown sound", DeviceStore.shutdownSound(this)
+                                ? "On \u00b7 plays before TV Power Off"
+                                : "Off \u00b7 tap to set",
+                        v -> {
+                            dialog.dismiss();
+                            showShutdownSoundDialog();
+                        }),
+                tile("Appearance", Palette.of(DeviceStore.themeIndex(this)).name,
+                        v -> {
+                            dialog.dismiss();
+                            showThemePicker();
+                        })));
+
+        panel.addView(sectionLabel("TOOLS"));
+        panel.addView(tileRow(
+                tile("Macros", "Sequences \u00b7 loop or repeat",
+                        v -> {
+                            dialog.dismiss();
+                            showMacroPage();
+                        }),
+                tile("Test Storm", "Sweep every button",
+                        v -> {
+                            dialog.dismiss();
+                            showStormDialog();
+                        })));
+        panel.addView(tileRow(
+                tile("Signal Lab", "Carrier, frames and gap",
+                        v -> {
+                            dialog.dismiss();
+                            showSignalLab();
+                        }),
+                tile("Add a missing button", "Borrow a key from a sibling",
+                        v -> {
+                            dialog.dismiss();
+                            showAddKey();
+                        })));
+        if ("Air Conditioner".equals(current == null ? "" : current.category)) {
+            panel.addView(tileRow(
+                    tile("Power Doctor", "Fix an aircon Off code",
+                            v -> {
+                                dialog.dismiss();
+                                showPowerDoctor();
+                            }),
+                    null));
+        }
+
+        panel.addView(sectionLabel("APP"));
+        panel.addView(tileRow(
+                tile("IR & scan", "Boost and scan speed",
+                        v -> {
+                            dialog.dismiss();
+                            startActivity(new Intent(this, ConfigsActivity.class));
+                        }),
+                tile("Jack blaster", "3.5 mm DIY emitter",
+                        v -> {
+                            dialog.dismiss();
+                            showJackDialog();
+                        })));
+        panel.addView(tileRow(
+                tile("Diagnostics", "IR status and phone info",
+                        v -> {
+                            dialog.dismiss();
+                            showDiagnostics();
+                        }),
+                tile("Updates", "v" + Updater.currentVersion() + " \u00b7 check",
+                        v -> {
+                            dialog.dismiss();
+                            showUpdatesDialog();
+                        })));
+        panel.addView(tileRow(
+                tile("About", "Sources, limits, licence",
+                        v -> {
+                            dialog.dismiss();
+                            showAbout();
+                        }),
+                null));
+
+        addClose(panel, dialog);
+        showSheet(dialog, panel, 0.86f);
+    }
+
+    // ----------------------------------------------------------- more helpers
+
+    /** The bottom-sheet card shared by More, its pickers and the sound dialog. */
+    private LinearLayout sheetPanel(String title, String subtitle) {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(18), dp(12), dp(18), dp(24));
@@ -4483,150 +5016,77 @@ public class MainActivity extends Activity {
         hl.bottomMargin = dp(14);
         panel.addView(handle, hl);
 
-        panel.addView(text("More", 26, TEXT, true));
-        TextView sub = text("Pick a device type, manage devices, fetch remotes.",
-                12, MUTED, false);
-        sub.setPadding(0, dp(2), 0, dp(14));
+        panel.addView(text(title, 26, TEXT, true));
+        TextView sub = text(subtitle, 12, MUTED, false);
+        sub.setPadding(0, dp(2), 0, dp(10));
         panel.addView(sub);
+        return panel;
+    }
 
-        TextView catHeader = text("CATEGORIES", 10, ACCENT, true);
-        catHeader.setLetterSpacing(0.14f);
-        catHeader.setPadding(0, 0, 0, dp(8));
-        panel.addView(catHeader);
+    private TextView sectionLabel(String value) {
+        TextView header = text(value, 10, ACCENT, true);
+        header.setLetterSpacing(0.14f);
+        header.setPadding(0, dp(8), 0, dp(8));
+        return header;
+    }
 
-        LinearLayout grid = new LinearLayout(this);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < categories.size(); i += 2) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            chipLp.setMargins(0, 0, dp(4), dp(8));
-            row.addView(categoryChip(categories.get(i), dialog, i), chipLp);
-            if (i + 1 < categories.size()) {
-                LinearLayout.LayoutParams chipLp2 = new LinearLayout.LayoutParams(0,
-                        ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-                chipLp2.setMargins(dp(4), 0, 0, dp(8));
-                row.addView(categoryChip(categories.get(i + 1), dialog, i + 1), chipLp2);
-            } else {
-                Space spacer = new Space(this);
-                LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, 1, 1f);
-                sp.setMargins(dp(4), 0, 0, dp(8));
-                row.addView(spacer, sp);
-            }
-            grid.addView(row);
+    /** A compact two-line tile. Keeps the More sheet to a handful of rows. */
+    private View tile(String title, String subtitle, View.OnClickListener click) {
+        LinearLayout t = new LinearLayout(this);
+        t.setOrientation(LinearLayout.VERTICAL);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setPadding(dp(12), dp(9), dp(12), dp(9));
+        t.setBackground(Surface.raised(this, 16, CARD, STROKE, palette.gloss(0.09f)));
+        Surface.elevate(t, 16, 2);
+        Surface.sinkOnPress(t, 2);
+
+        TextView name = text(title, 13, TEXT, true);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.addView(name);
+
+        TextView sub = text(subtitle, 10, MUTED, false);
+        sub.setSingleLine(true);
+        sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        sub.setPadding(0, dp(2), 0, 0);
+        t.addView(sub);
+
+        t.setOnClickListener(click);
+        return t;
+    }
+
+    private View tileRow(View left, View right) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(58), 1f);
+        lp.setMargins(0, 0, dp(4), dp(8));
+        row.addView(left, lp);
+        if (right != null) {
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(0, dp(58), 1f);
+            rp.setMargins(dp(4), 0, 0, dp(8));
+            row.addView(right, rp);
+        } else {
+            Space spacer = new Space(this);
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, 1, 1f);
+            sp.setMargins(dp(4), 0, 0, dp(8));
+            row.addView(spacer, sp);
         }
-        panel.addView(grid);
+        return row;
+    }
 
-        TextView toolsHeader = text("TOOLS", 10, ACCENT, true);
-        toolsHeader.setLetterSpacing(0.14f);
-        toolsHeader.setPadding(0, dp(10), 0, dp(8));
-        panel.addView(toolsHeader);
-
-        panel.addView(toolRow("Devices", "Name and switch saved devices", v -> {
-            dialog.dismiss();
-            startActivity(new Intent(this, ConfigsActivity.class));
-        }));
-        panel.addView(toolRow("Fetch original remote",
-                "Import a captured .ir file", v -> {
-                    dialog.dismiss();
-                    startActivityForResult(
-                            new Intent(this, LearnActivity.class), REQ_LEARN);
-                }));
-        panel.addView(toolRow("Macros",
-                "Sequences for this remote \u00b7 loop forever or N times", v -> {
-                    dialog.dismiss();
-                    showMacroPage();
-                }));
-        panel.addView(toolRow("Test Storm",
-                "Sweep every button in a shuffled order", v -> {
-                    dialog.dismiss();
-                    showStormDialog();
-                }));
-        panel.addView(toolRow("Add a missing button",
-                "Pull a key from a sibling profile", v -> {
-                    dialog.dismiss();
-                    showAddKey();
-                }));
-        panel.addView(toolRow("Signal Lab",
-                "Find the carrier, frames and gap that work", v -> {
-                    dialog.dismiss();
-                    showSignalLab();
-                }));
-        if ("Air Conditioner".equals(current == null ? "" : current.category)) {
-            panel.addView(toolRow("Power Doctor",
-                    "Fix an aircon Off code that only changes temperature", v -> {
-                        dialog.dismiss();
-                        showPowerDoctor();
-                    }));
-        }
-        panel.addView(toolRow("Web shortcut",
-                "Address the Web button opens", v -> {
-                    dialog.dismiss();
-                    editWebUrl();
-                }));
-        panel.addView(toolRow("IR & scan settings", "Boost and scan speed", v -> {
-            dialog.dismiss();
-            startActivity(new Intent(this, ConfigsActivity.class));
-        }));
-        panel.addView(toolRow("Diagnostics", "IR status, phone and database info", v -> {
-            dialog.dismiss();
-            showDiagnostics();
-        }));
-        panel.addView(toolRow("About", "Sources, limits and how it works", v -> {
-            dialog.dismiss();
-            showAbout();
-        }));
-
-        TextView updateHeader = text("UPDATES", 10, ACCENT, true);
-        updateHeader.setLetterSpacing(0.14f);
-        updateHeader.setPadding(0, dp(10), 0, dp(8));
-        panel.addView(updateHeader);
-        panel.addView(toolRow("Check for updates",
-                "You are on " + Updater.currentVersion() + " \u00b7 GitHub releases",
-                v -> {
-                    dialog.dismiss();
-                    checkForUpdatesNow();
-                }));
-        panel.addView(switchRow("Auto update check",
-                "Asks once per app open while on Wi-Fi or mobile data",
-                Updater.enabled(this),
-                on -> {
-                    Updater.setEnabled(this, on);
-                    status.setText(on ? "Update checks are on."
-                            : "Update checks are off. The app makes no network calls.");
-                }));
-
-        TextView jackHeader = text("JACK BLASTER", 10, ACCENT, true);
-        jackHeader.setLetterSpacing(0.14f);
-        jackHeader.setPadding(0, dp(10), 0, dp(8));
-        panel.addView(jackHeader);
-        panel.addView(toolRow("DIY IR blaster on the 3.5mm plug",
-                JackBlaster.plugPresent(this)
-                        ? "Something is in the port \u00b7 2 LEDs back-to-back needed"
-                        : "Port reads empty \u00b7 force it if your plug has no mic line",
-                v -> {
-                    dialog.dismiss();
-                    showJackDialog();
-                }));
-
-        TextView themeHeader = text("APPEARANCE", 10, ACCENT, true);
-        themeHeader.setLetterSpacing(0.14f);
-        themeHeader.setPadding(0, dp(10), 0, dp(8));
-        panel.addView(themeHeader);
-        TextView themeNote = text("Ten orange-family themes. Switching one keeps every "
-                + "saved device and setting.", 11, MUTED, false);
-        themeNote.setPadding(0, 0, 0, dp(8));
-        panel.addView(themeNote);
-        panel.addView(themeGrid(dialog));
-
+    private void addClose(LinearLayout panel, Dialog dialog) {
         Button close = styledButton("Close", BTN, 14);
         close.setOnClickListener(v -> dialog.dismiss());
-        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
-        closeLp.topMargin = dp(10);
-        panel.addView(close, closeLp);
+        lp.topMargin = dp(10);
+        panel.addView(close, lp);
+    }
 
+    private void showSheet(Dialog dialog, View panel, float heightFraction) {
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(Color.TRANSPARENT);
+        scroll.setFillViewport(true);
         scroll.addView(panel);
         dialog.setContentView(scroll);
         dialog.show();
@@ -4639,10 +5099,74 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
             lp.copyFrom(w.getAttributes());
             lp.width = WindowManager.LayoutParams.MATCH_PARENT;
-            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.9f);
+            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * heightFraction);
             lp.gravity = Gravity.BOTTOM;
             w.setAttributes(lp);
         }
+    }
+
+    private void showCategoryPicker() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = sheetPanel("Device type",
+                categories.size() + " categories \u00b7 current: " + category.name);
+        for (int i = 0; i < categories.size(); i += 2) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams a = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            a.setMargins(0, 0, dp(4), dp(8));
+            row.addView(categoryChip(categories.get(i), dialog, i), a);
+            if (i + 1 < categories.size()) {
+                LinearLayout.LayoutParams b = new LinearLayout.LayoutParams(0,
+                        ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                b.setMargins(dp(4), 0, 0, dp(8));
+                row.addView(categoryChip(categories.get(i + 1), dialog, i + 1), b);
+            } else {
+                Space spacer = new Space(this);
+                LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, 1, 1f);
+                sp.setMargins(dp(4), 0, 0, dp(8));
+                row.addView(spacer, sp);
+            }
+            panel.addView(row);
+        }
+        addClose(panel, dialog);
+        showSheet(dialog, panel, 0.86f);
+    }
+
+    private void showThemePicker() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = sheetPanel("Appearance",
+                "Ten orange-family themes. Saved devices and settings stay put.");
+        panel.addView(themeGrid(dialog));
+        addClose(panel, dialog);
+        showSheet(dialog, panel, 0.82f);
+    }
+
+    private void showUpdatesDialog() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = sheetPanel("Updates",
+                "You are on " + Updater.currentVersion() + " \u00b7 GitHub releases");
+        String latest = Updater.knownLatest(this);
+        panel.addView(toolRow("Check for updates",
+                latest == null || latest.isEmpty()
+                        ? "Ask GitHub for the newest release"
+                        : "Last seen: " + latest + " \u00b7 tap to check again",
+                v -> {
+                    dialog.dismiss();
+                    checkForUpdatesNow();
+                }));
+        panel.addView(switchRow("Auto update check",
+                "One quiet check per app open",
+                Updater.enabled(this), on -> {
+                    Updater.setEnabled(this, on);
+                    status.setText(on ? "Update checks are on."
+                            : "Update checks are off. The app makes no network calls.");
+                }));
+        addClose(panel, dialog);
+        showSheet(dialog, panel, 0.58f);
     }
 
     private View themeGrid(Dialog host) {
@@ -5322,6 +5846,7 @@ public class MainActivity extends Activity {
         macroCancelled.set(true);
         stormCancelled.set(true);
         repeatKey = null;
+        cancelShutdownSound();
         handler.removeCallbacksAndMessages(null);
         if (stormDialog != null && stormDialog.isShowing()) stormDialog.dismiss();
         dismissScanner();

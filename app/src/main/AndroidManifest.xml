@@ -4,13 +4,11 @@
     <uses-permission android:name="android.permission.TRANSMIT_IR" />
     <uses-feature android:name="android.hardware.consumerir" android:required="false" />
 
-    <!-- Android 11+ package visibility: lets the shortcut row open installed
-         streaming apps directly instead of always falling back to the browser. -->
+    <!-- Android 11+ package visibility: let the shortcut row address Chrome.
+         Prime, Copilot and Web always open there; Netflix and YouTube fall back
+         to the browser when the profile has no IR key. -->
     <queries>
-        <package android:name="com.google.android.youtube" />
-        <package android:name="com.netflix.mediaclient" />
-        <package android:name="com.amazon.avod.thirdpartyclient" />
-        <package android:name="com.microsoft.copilot" />
+        <package android:name="com.android.chrome" />
     </queries>
 
     <!-- Only used by the optional update check. Every remote feature works fully offline. -->

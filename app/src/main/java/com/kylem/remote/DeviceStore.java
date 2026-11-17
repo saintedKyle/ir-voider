@@ -449,6 +449,26 @@ public final class DeviceStore {
         prefs(c).edit().putString("webUrl", url).apply();
     }
 
+    // ------------------------------------------------------- shutdown sound
+
+    /** Play a short clip on the phone just before the Power Off IR goes out. */
+    public static boolean shutdownSound(Context c) {
+        return prefs(c).getBoolean("shutdownSound", false);
+    }
+
+    public static void setShutdownSound(Context c, boolean value) {
+        prefs(c).edit().putBoolean("shutdownSound", value).apply();
+    }
+
+    /** Direct audio URL (mp3/m4a/ogg/wav), not a web page that contains audio. */
+    public static String shutdownSoundUrl(Context c) {
+        return prefs(c).getString("shutdownSoundUrl", "");
+    }
+
+    public static void setShutdownSoundUrl(Context c, String url) {
+        prefs(c).edit().putString("shutdownSoundUrl", url).apply();
+    }
+
     // ---------------------------------------------------------- test storm
 
     public static int stormDelayMs(Context c) {

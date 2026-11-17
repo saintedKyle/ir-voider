@@ -32,8 +32,12 @@ this repository's Releases.
 > saved devices. Only the original debug-signed build has to be uninstalled first —
 > Android blocks in-place updates when the signing key changes.
 >
-> **1.7.0 installs straight over 1.6.x** and keeps saved remotes, macros, themes and
-> settings.
+> **1.7.0 (versionCode 24) is debug-signed.** It installs over an earlier
+> debug-signed build and keeps saved remotes, macros, themes and settings. If your
+> phone has the **release-signed 1.6.5 APK** from Releases, Android will refuse the
+> update with a signature conflict. Uninstall 1.6.5 first; that clears saved remotes
+> and macros because backups are off. The original release key is not available, so
+> no 1.7 build can update that package in place.
 
 ## What's new in 1.7
 
@@ -46,12 +50,23 @@ this repository's Releases.
   150 ms. **STOP STORM** lands within 50 ms. Power is left out unless you tick the
   box, and aircon frames are allowed to finish before the next press.
 - **Shortcuts row.** Netflix, YouTube, Prime, Apps, Copilot and Web sit under the
-  power buttons. A **tinted** chip means this profile carries the real IR key, so a
-  tap sends it to the TV. An untinted chip opens the app or address on the phone,
-  because IR cannot carry a URL. Hold **Web** to change its address. TCL and LG
-  profiles that captured **Netflix** or **Apps** send those keys to the TV; other
-  models fall back to the phone app, and **Add a missing button** can pull the IR
-  key from a sibling model.
+  power buttons. **Prime, Copilot and Web always open in Chrome on the phone** —
+  IR cannot carry a URL to a TV. Netflix, YouTube and Apps still send the real IR
+  key when the profile has one; otherwise Netflix and YouTube fall back to Chrome.
+  Hold **Web** to change its address. A tinted chip therefore means a tap sends IR,
+  and untinted chips open on the phone.
+- **A retro boot screen while the IR database loads.** Amber CRT type, scanlines, a
+  sweeping cathode beam, rotating boot lines and a progress bar that races to 94 %
+  before the real database is ready. The full bar and **READY.** stay up briefly.
+- **A shorter, grouped More screen.** Categories, tools and app settings are now
+  compact two-column tiles. Choosing a device type or a theme opens its own picker
+  instead of stretching the main sheet with 40 category chips and 10 theme cells.
+- **TV shutdown sound.** In **More → Shutdown sound**, flip the switch and paste a
+  direct `https://` audio link (`.mp3`, `.m4a`, `.ogg`, `.wav`). The clip plays on
+  the phone, then the TV's Power Off code is sent. If the profile only has one Power
+  toggle, the clip plays on that tap too, because one-way IR cannot tell on from off.
+  A slow or broken link never blocks the IR — a watchdog sends it anyway. **Test
+  sound** previews the clip without touching the TV.
 - **AirMax and Beko aircon temperature, mode and fan.** Their captures are Midea
   **R05D** state frames, which encode temperature in a Gray code and mode/fan in the
   same 48-bit packet. 1.6.x only exposed the one captured 17 °C frame, so Off could
@@ -83,8 +98,8 @@ this repository's Releases.
 
 ## Use
 
-1. Tap **≡ More** (top-left) and pick a category: TV, air conditioner, projector,
-   fan, LED light, soundbar, and more.
+1. Tap **≡ More**, then **Device type**, and pick a category: TV, air conditioner,
+   projector, fan, LED light, soundbar, and more.
 2. Pick your brand and model — or tap **Search** next to either row and type, e.g.
    `HWE08`, to jump straight to that profile. Then press **POWER**.
 3. No reaction? Tap **Find code**. It sends one power code at a time; when the
@@ -92,6 +107,7 @@ this repository's Releases.
 4. Save and name the remote with **⚙** (top-right).
 5. Use the **SHORTCUTS** row for Netflix, YouTube, Prime, Apps, Copilot and Web, or
    **MACROS** in the controls header to build a sequence. **TEST** starts Test Storm.
+   Prime, Copilot and Web open in Chrome; Netflix, YouTube and Apps try the TV first.
 
 ## What it does
 
@@ -149,6 +165,9 @@ this repository's Releases.
 - **Optional update check** — the only network code in the app. It asks GitHub for
   the newest release once per app open and is one tap away in **≡ More → Updates**.
   Everything else, including every remote and scan, works in airplane mode.
+- **Optional TV shutdown sound** — play a direct audio link on the phone just before
+  the TV's Power Off code. Set it in **≡ More → Shutdown sound**; it is off by
+  default, and a failed or slow link never stops the IR.
 
 Air conditioners include the buttons captured in the database. Raw AC frames can
 represent a fixed state rather than an incremental step, and a captured power code
@@ -210,8 +229,9 @@ instead, which is the closest thing to a real check.
 
 ## Privacy
 
-No account, analytics, ads, or network access. The only permission is
-`TRANSMIT_IR`. See [PRIVACY.md](PRIVACY.md) or the hosted policy:
+No account, analytics, ads, or tracking. `TRANSMIT_IR` is the only permission the
+remote uses; `INTERNET` and `ACCESS_NETWORK_STATE` exist only for the optional
+GitHub update check. See [PRIVACY.md](PRIVACY.md) or the hosted policy:
 https://saintedkyle.github.io/ir-voider/privacy.html
 
 ## Build from source
