@@ -32,6 +32,9 @@ this repository's Releases.
 > saved devices. Only a build signed with a different key has to be uninstalled
 > first — Android blocks in-place updates when the signing key changes.
 >
+> **1.8.0 (versionCode 26) is signed with the same key as 1.7.0**, so it installs
+> straight over it and keeps saved remotes, macros, themes and settings.
+>
 > **1.7.0 (versionCode 25) is release-signed** with a new `CN=IR Voider` key
 > generated for this release. It installs over itself and future builds signed with
 > the same key, keeping saved remotes, macros, themes and settings. Because the
@@ -39,6 +42,35 @@ this repository's Releases.
 > phone has **1.6.5 or an earlier debug-signed 1.7.0 build**. That clears saved
 > remotes and macros because backups are off. After this install, updates work
 > normally again.
+
+## What's new in 1.8
+
+- **The controls pages are rebuilt around the buttons.** Every key on the swipeable
+  pages is now a frosted-glass plate with a vector glyph beside its name: a lit top
+  edge, an accent-tinted rim and a real contact shadow, so the page reads as a stack
+  of glass keys rather than grey rectangles.
+- **Bigger targets, fewer per page.** Six tiles per page instead of twelve, two per
+  row, 76 dp tall. Swiping still moves between pages, and the page strip now names
+  the page you are on (`● ○ ○  BASICS  1/7`) with larger previous/next keys.
+- **The D-pad is a real ring.** Up/Left/OK/Right/Down sit in a 3×3 grid of 66 dp
+  icon keys instead of three rows of flat rectangles.
+- **Every button the model can send is reachable.** Each profile now merges the keys
+  it is missing from other remotes of the **same brand** in the same category. That
+  is how a 10-key TCL capture reaches the 44 keys TCL sets use across the database,
+  and why LG profiles expose up to 50. Borrowed keys never overwrite the code the
+  selected model already has, and generated `ac_*` state frames are never borrowed —
+  those are built from one indoor unit's own capture.
+- **Aircon keys for Haier and AirMax.** Haier's three captures now combine into
+  mode/speed/temp/timer instead of Power only. AirMax remains Power, Power Off and
+  Light: that is every code the database holds for it, and no IR code is invented.
+- **Shortcuts go to the TV first.** Netflix, YouTube, Prime, Disney+, HBO, Spotify
+  and Apps now always try the TV's own IR key, including keys merged from a sibling
+  model. A shortcut with no IR code on this model is drawn grey and asks before it
+  opens on the phone — Chrome no longer appears by itself. IR is one-way and cannot
+  carry a URL, so a profile without the app key genuinely cannot launch it on the TV.
+- **Fewer dropped presses.** Taps wait in a short queue behind the frame being sent
+  instead of being thrown away while the emitter is busy, which is what made fast
+  presses feel late. Hold-to-repeat starts in 380 ms instead of 450 ms.
 
 ## What's new in 1.7
 

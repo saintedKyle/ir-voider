@@ -87,6 +87,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity extends Activity {
 
@@ -207,6 +208,8 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService irExecutor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean irBusy = new AtomicBoolean(false);
+    /** Taps already queued for the emitter. Rapid presses line up instead of being dropped. */
+    private final AtomicInteger irInFlight = new AtomicInteger(0);
 
     private final List<Category> categories = new ArrayList<>();
     private final List<Candidate> candidates = new ArrayList<>();
@@ -225,6 +228,7 @@ public class MainActivity extends Activity {
     private SwipeFlipper controlsPager;
     private TextView pageDots;
     private int pageCount;
+    private final List<String> pageTitles = new ArrayList<>();
     private Spinner brandSpinner;
     private Spinner remoteSpinner;
     private final Button[] speedButtons = new Button[5];
@@ -956,16 +960,10 @@ public class MainActivity extends Activity {
                 row.addView(s, new LinearLayout.LayoutParams(0, 1, 1f));
                 continue;
             }
-            Button b = styledButton(labelFor(key), BTN, 15);
-            if (holdable(key)) {
-                attachRepeat(b, key);
-            } else {
-                b.setOnClickListener(v -> send(key));
-            }
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(54), 1f);
-            lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+            Button b = keyTile(key, labelFor(key), false, dp(76), 15);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(76), 1f);
+            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
             row.addView(b, lp);
-            buttons.put(key, b);
         }
         parent.addView(row);
     }
@@ -984,7 +982,7 @@ public class MainActivity extends Activity {
                 case MotionEvent.ACTION_DOWN:
                     repeatKey = key;
                     send(key);
-                    handler.postDelayed(repeatRunnable, 450);
+                    handler.postDelayed(repeatRunnable, 380);
                     v.setPressed(true);
                     Surface.sink(v, true, 2);
                     return true;
@@ -1371,6 +1369,34 @@ public class MainActivity extends Activity {
                 for (int i = 0; i < pat.length(); i++) code.pattern[i] = pat.getInt(i);
                 r.buttons.put(key, code);
             } catch (Exception ignored) {
+            }
+        }
+        mergeSiblingKeys(r);
+    }
+
+    /**
+     * Fill in the buttons this model's capture never included by borrowing the same key from
+     * another remote of the same brand in this category.
+     *
+     * <p>The database is a set of real captures from real remotes, and many entries stop at
+     * Power/Volume/CH. A brand's newer sets usually do carry the missing keys, so within one brand
+     * the union is the closest thing to "every button this model has" that does not invent an IR
+     * code. Borrowed keys never overwrite a code the selected model already has.
+     *
+     * <p>Generated {@code ac_*} state frames are deliberately skipped: they are rebuilt from one
+     * indoor unit's own capture and mean nothing on a different unit.
+     */
+    private void mergeSiblingKeys(Remote r) {
+        if (r == null || r.brand == null || brands == null) return;
+        for (Brand b : brands) {
+            if (!b.name.equalsIgnoreCase(r.brand)) continue;
+            for (Remote sibling : b.remotes) {
+                if (sibling == r) continue;
+                for (Map.Entry<String, Code> entry : sibling.buttons.entrySet()) {
+                    String key = entry.getKey();
+                    if (key.startsWith("ac_") || key.startsWith("__")) continue;
+                    if (!r.buttons.containsKey(key)) r.buttons.put(key, entry.getValue());
+                }
             }
         }
     }
@@ -2055,7 +2081,10 @@ public class MainActivity extends Activity {
             }
         }
         if (irExecutor.isShutdown()) return false;
-        if (!irBusy.compareAndSet(false, true)) return false;
+        // A single-threaded emitter is fine, but refusing taps while one frame is in
+        // flight made fast presses feel late and dropped. Queue a few instead.
+        if (irInFlight.get() >= 5) return false;
+        irInFlight.incrementAndGet();
         final int count = Math.max(1, Math.min(3, repeats));
         DeviceStore.Calibration cal = DeviceStore.calibration(this, macroKey());
         final int gapMs = cal != null ? cal.gapMs : frameGapMs();
@@ -2081,7 +2110,7 @@ public class MainActivity extends Activity {
                 failure = e.getMessage() == null
                         ? e.getClass().getSimpleName() : e.getMessage();
             } finally {
-                irBusy.set(false);
+                irInFlight.decrementAndGet();
                 final String why = failure;
                 if (why != null) {
                     runOnUiThread(() -> status.setText(
@@ -2092,7 +2121,7 @@ public class MainActivity extends Activity {
             });
             return true;
         } catch (RejectedExecutionException e) {
-            irBusy.set(false);
+            irInFlight.decrementAndGet();
             return false;
         }
     }
@@ -2707,6 +2736,7 @@ public class MainActivity extends Activity {
         controlsPager = null;
         pageDots = null;
         pageCount = 0;
+        pageTitles.clear();
         if (current == null) {
             controlsCard.addView(text("Select a remote to begin.", 13, MUTED, false));
             return;
@@ -2825,9 +2855,10 @@ public class MainActivity extends Activity {
             shortcutLabel.setPadding(0, dp(14), 0, dp(6));
             controlsCard.addView(shortcutLabel);
             controlsCard.addView(shortcutGrid());
-            TextView shortcutNote = text("Tinted buttons send an IR app key to the TV. "
-                    + "The rest open on this phone — IR cannot carry a URL. Hold Web to "
-                    + "change its address.", 11, MUTED, false);
+            TextView shortcutNote = text("Accent buttons send the TV's own app key. A grey "
+                    + "one has no IR code on this model — IR cannot carry a URL, so it asks "
+                    + "before opening on the phone. Hold Web to change its address.", 11, MUTED,
+                    false);
             shortcutNote.setPadding(0, dp(6), 0, 0);
             controlsCard.addView(shortcutNote);
         }
@@ -2841,6 +2872,8 @@ public class MainActivity extends Activity {
 
         List<Page> pages = buildPages();
         pageCount = pages.size();
+        pageTitles.clear();
+        for (Page page : pages) pageTitles.add(page.title);
         if (pageCount == 0) {
             String message = "Air Conditioner".equals(current.category)
                     ? "Built-in aircon profiles expose Power only. Temperature, mode and "
@@ -2886,8 +2919,11 @@ public class MainActivity extends Activity {
             animatePager(true);
             controlsPager.setDisplayedChild(0);
             updatePageDots();
-            controlsCard.addView(text("Swipe left or right for more buttons.",
-                    11, MUTED, false));
+            TextView swipeHint = text("Swipe the buttons left or right. Every code this "
+                    + "model can send lives on these pages \u2014 the page strip below "
+                    + "tells you where you are.", 11, MUTED, false);
+            swipeHint.setPadding(0, dp(4), 0, 0);
+            controlsCard.addView(swipeHint);
         }
 
         if ("Air Conditioner".equals(current.category)) {
@@ -2910,29 +2946,38 @@ public class MainActivity extends Activity {
     private View shortcutGrid() {
         LinearLayout grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
-        String[][] items = {
-                {"Netflix", "netflix"}, {"YouTube", "youtube"}, {"Prime", "prime"},
-                {"Apps", "apps"}, {"Copilot", "copilot"}, {"Web", "web"}
-        };
-        for (int i = 0; i < items.length; i += 3) {
+        List<String[]> items = new ArrayList<>();
+        for (String key : new String[]{"netflix", "youtube", "prime", "disney", "hbo",
+                "spotify", "apps"}) {
+            boolean hasIr = current != null && current.buttons.containsKey(key);
+            boolean always = "netflix".equals(key) || "youtube".equals(key)
+                    || "prime".equals(key) || "apps".equals(key);
+            if (hasIr || always) items.add(new String[]{labelFor(key), key, hasIr ? "1" : "0"});
+        }
+        boolean webIr = current != null && current.buttons.containsKey("browser");
+        items.add(new String[]{"Web", "web", webIr ? "1" : "0"});
+
+        for (int i = 0; i < items.size(); i += 3) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             for (int j = 0; j < 3; j++) {
                 int n = i + j;
-                if (n >= items.length) {
+                if (n >= items.size()) {
                     row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1f));
                     continue;
                 }
-                final String kind = items[n][1];
-                boolean chromeOnly = "prime".equals(kind) || "copilot".equals(kind)
-                        || "web".equals(kind);
-                boolean ir = !chromeOnly && current != null
-                        && current.buttons.containsKey(kind);
-                Button b = styledButton(items[n][0],
-                        ir ? Surface.blend(BTN, brandAccent, 0.16f) : BTN, 13);
-                if (ir) b.setTextColor(brandAccent);
-                b.setContentDescription(items[n][0]
-                        + (chromeOnly ? " shortcut, opens Chrome" : " shortcut"));
+                final String kind = items.get(n)[1];
+                boolean ir = "1".equals(items.get(n)[2]);
+                // A shortcut that can reach the TV is drawn in the device accent; one that
+                // only exists on the phone stays grey so the difference is visible at a glance.
+                int accent = ir ? tileAccent()
+                        : Surface.blend(tileAccent(), MUTED, 0.7f);
+                Button b = new KeyTile(this, palette, accent, kind, items.get(n)[0], 13, false,
+                        false);
+                b.setTextColor(ir ? TEXT : MUTED);
+                b.setContentDescription(items.get(n)[0] + (ir
+                        ? " shortcut, sent to the TV over IR"
+                        : " shortcut, not available as an IR key on this model"));
                 b.setOnClickListener(v -> activateShortcut(kind));
                 if ("web".equals(kind)) {
                     b.setOnLongClickListener(v -> {
@@ -2940,8 +2985,8 @@ public class MainActivity extends Activity {
                         return true;
                     });
                 }
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
-                lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(56), 1f);
+                lp.setMargins(dp(4), dp(4), dp(4), dp(4));
                 row.addView(b, lp);
             }
             grid.addView(row);
@@ -2949,28 +2994,65 @@ public class MainActivity extends Activity {
         return grid;
     }
 
+    /**
+     * Shortcuts are IR first now. If this profile has the app key — its own or one merged in
+     * from a sibling model — the TV receives it. Only when there is no such code does the
+     * phone browser come into it, and then the user is asked first instead of Chrome
+     * appearing on its own.
+     */
     private void activateShortcut(String kind) {
         if (current == null) {
             status.setText("Pick a device remote first.");
             return;
         }
-        if ("netflix".equals(kind)) {
-            if (sendKeyIfPresent("netflix")) return;
-            openInChrome("https://www.netflix.com", "Netflix");
-        } else if ("youtube".equals(kind)) {
-            if (sendKeyIfPresent("youtube")) return;
-            openInChrome("https://www.youtube.com", "YouTube");
-        } else if ("prime".equals(kind)) {
-            openInChrome("https://www.primevideo.com", "Prime Video");
-        } else if ("apps".equals(kind)) {
-            if (sendKeyIfPresent("apps")) return;
-            status.setText("This profile has no Apps key. Add one from a sibling "
-                    + "model in More \u2192 Add a missing button.");
-        } else if ("copilot".equals(kind)) {
-            openInChrome("https://copilot.microsoft.com", "Copilot");
-        } else if ("web".equals(kind)) {
-            openInChrome(DeviceStore.webUrl(this), "Web shortcut");
+        if (sendKeyIfPresent(kind)) return;
+        if ("web".equals(kind) && sendKeyIfPresent("browser")) return;
+
+        String name = labelFor(kind);
+        String url;
+        switch (kind) {
+            case "netflix":
+                url = "https://www.netflix.com";
+                break;
+            case "youtube":
+                url = "https://www.youtube.com";
+                break;
+            case "prime":
+                url = "https://www.primevideo.com";
+                break;
+            case "disney":
+                url = "https://www.disneyplus.com";
+                break;
+            case "hbo":
+                url = "https://www.max.com";
+                break;
+            case "spotify":
+                url = "https://open.spotify.com";
+                break;
+            case "copilot":
+                url = "https://copilot.microsoft.com";
+                break;
+            case "web":
+                url = DeviceStore.webUrl(this);
+                break;
+            default:
+                url = null;
         }
+        if (url == null) {
+            status.setText("This profile has no " + name + " key. More \u2192 Add a "
+                    + "missing button can copy one from a sibling model.");
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(name + " has no IR key here")
+                .setMessage("This " + current.brand + " profile cannot send " + name
+                        + " to the TV. IR is one-way and cannot carry a web address, so the TV "
+                        + "itself cannot be told to open it.\n\nTry another " + current.brand
+                        + " model in the model list if one has the key, or open it on this "
+                        + "phone.")
+                .setPositiveButton("Open on phone", (d, w) -> openInChrome(url, name))
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private boolean sendKeyIfPresent(String key) {
@@ -2980,9 +3062,9 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Prime, Copilot and Web have no reliable IR key, so they always open in Chrome
-     * on the phone. Chrome is addressed by package first; any browser is the
-     * fallback for phones without Chrome. IR cannot carry a URL to a TV.
+     * Last resort for a shortcut with no IR code on the selected model: open it on the phone.
+     * Chrome is addressed by package first; any browser is the fallback. IR cannot carry a URL,
+     * so this is never a substitute for sending a key to the TV.
      */
     private void openInChrome(String url, String name) {
         if (url == null || url.isEmpty()) return;
@@ -3268,10 +3350,13 @@ public class MainActivity extends Activity {
 
     private void addPage(List<Page> pages, String title, List<String> keys) {
         if (keys.isEmpty()) return;
-        int chunks = (keys.size() + 11) / 12;
+        // Big icon tiles need room: six per page, except the number pad and the letter
+        // grid, which stay compact so the whole keypad is on one page.
+        int per = "NUMBERS".equals(title) || "KEYBOARD".equals(title) ? 12 : 6;
+        int chunks = (keys.size() + per - 1) / per;
         for (int c = 0; c < chunks; c++) {
-            int from = c * 12;
-            int to = Math.min(keys.size(), from + 12);
+            int from = c * per;
+            int to = Math.min(keys.size(), from + per);
             String pageTitle = chunks == 1 ? title : title + " " + (c + 1) + "/" + chunks;
             pages.add(new Page(pageTitle, new ArrayList<>(keys.subList(from, to))));
         }
@@ -3306,45 +3391,130 @@ public class MainActivity extends Activity {
     }
 
     private void addPageView(LinearLayout parent, Page page) {
-        TextView title = text(page.title, 10, brandAccent == 0 ? ACCENT : brandAccent, true);
-        title.setLetterSpacing(0.12f);
-        title.setPadding(0, dp(6), 0, dp(4));
+        TextView title = text(page.title, 13, brandAccent == 0 ? ACCENT : brandAccent, true);
+        title.setLetterSpacing(0.10f);
+        title.setPadding(0, dp(12), 0, dp(8));
         parent.addView(title);
-        boolean isNav = page.title.startsWith("NAVIGATION");
-        List<String> rest = new ArrayList<>();
-        if (isNav) {
+        if (page.title.startsWith("NAVIGATION")) {
             boolean hasDpad = true;
             for (String key : DPAD) if (!page.keys.contains(key)) hasDpad = false;
             if (hasDpad) {
-                addRow(parent, null, "up", null);
-                addRow(parent, "left", "ok", "right");
-                addRow(parent, null, "down", null);
+                addDpad(parent);
+                List<String> rest = new ArrayList<>();
                 for (String key : page.keys) if (!isDpad(key)) rest.add(key);
-            } else {
-                rest.addAll(page.keys);
+                if (!rest.isEmpty()) addGrid(parent, rest);
+                return;
             }
-        } else {
-            rest.addAll(page.keys);
         }
-        if (page.title.startsWith("COLORS") && !rest.isEmpty()) {
-            addFlexRow(parent, rest);
-        } else {
-            addGrid(parent, rest);
+        if (page.title.startsWith("NUMBERS")) {
+            addNumberPad(parent, page.keys);
+            return;
+        }
+        if (page.title.startsWith("KEYBOARD")) {
+            addCompactGrid(parent, page.keys);
+            return;
+        }
+        addGrid(parent, page.keys);
+    }
+
+    /** The D-pad as a real ring of large round keys instead of a row of rectangles. */
+    private void addDpad(LinearLayout parent) {
+        addDpadRow(parent, null, "up", null);
+        addDpadRow(parent, "left", "ok", "right");
+        addDpadRow(parent, null, "down", null);
+    }
+
+    private void addDpadRow(LinearLayout parent, String a, String b, String c) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        String[] keys = {a, b, c};
+        for (String key : keys) {
+            if (key == null) {
+                row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1f));
+                continue;
+            }
+            boolean ok = "ok".equals(key);
+            Button tile = keyTile(key, labelFor(key), !ok, dp(66), 15);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(66), 1f);
+            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+            row.addView(tile, lp);
+        }
+        parent.addView(row);
+    }
+
+    private void addNumberPad(LinearLayout parent, List<String> keys) {
+        for (int i = 0; i < keys.size(); i += 3) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            for (int j = 0; j < 3; j++) {
+                int n = i + j;
+                if (n >= keys.size()) {
+                    row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1f));
+                    continue;
+                }
+                String key = keys.get(n);
+                Button b = new KeyTile(this, palette, tileAccent(), labelFor(key), 22);
+                b.setContentDescription(labelFor(key));
+                b.setOnClickListener(v -> send(key));
+                buttons.put(key, b);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(68), 1f);
+                lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+                row.addView(b, lp);
+            }
+            parent.addView(row);
         }
     }
 
-    /**
-     * Rows of at most three, but a known pair never gets split across two rows
-     * just because a third button happened to fit.
-     */
+    /** Letter grid: label-only plates, four across, so the keyboard fits a page. */
+    private void addCompactGrid(LinearLayout parent, List<String> keys) {
+        for (int i = 0; i < keys.size(); i += 4) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            for (int j = 0; j < 4; j++) {
+                int n = i + j;
+                if (n >= keys.size()) {
+                    row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1f));
+                    continue;
+                }
+                String key = keys.get(n);
+                Button b = new KeyTile(this, palette, tileAccent(), labelFor(key), 16);
+                b.setContentDescription(labelFor(key));
+                if (holdable(key)) attachRepeat(b, key);
+                else b.setOnClickListener(v -> send(key));
+                buttons.put(key, b);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(54), 1f);
+                lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+                row.addView(b, lp);
+            }
+            parent.addView(row);
+        }
+    }
+
+    private int tileAccent() {
+        return brandAccent == 0 ? ACCENT : brandAccent;
+    }
+
+    /** Build one controls tile and wire it to the emitter (or hold-to-repeat). */
+    private Button keyTile(String key, String label, boolean iconOnly, int heightDp,
+                           float textSize) {
+        Button b = new KeyTile(this, palette, tileAccent(), key, label, textSize, iconOnly,
+                false);
+        b.setContentDescription(label);
+        if (holdable(key)) {
+            attachRepeat(b, key);
+        } else {
+            b.setOnClickListener(v -> send(key));
+        }
+        buttons.put(key, b);
+        return b;
+    }
+
+    /** Two big tiles per row: an icon and a readable name need the width. */
     private void addGrid(LinearLayout parent, List<String> keys) {
         int i = 0;
         while (i < keys.size()) {
-            int count = Math.min(3, keys.size() - i);
-            if (count == 3 && i + 3 < keys.size()
-                    && isPair(keys.get(i + 2), keys.get(i + 3))) {
-                count = 2;
-            }
+            int count = Math.min(2, keys.size() - i);
             addFlexRow(parent, keys.subList(i, i + count));
             i += count;
         }
@@ -3357,21 +3527,15 @@ public class MainActivity extends Activity {
         return false;
     }
 
-    /** Two buttons share the width instead of each taking a third and leaving a gap. */
+    /** Tiles share the row width instead of leaving a gap at the end. */
     private void addFlexRow(LinearLayout parent, List<String> keys) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         for (String key : keys) {
-            Button b = styledButton(labelFor(key), BTN, 15);
-            if (holdable(key)) {
-                attachRepeat(b, key);
-            } else {
-                b.setOnClickListener(v -> send(key));
-            }
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(54), 1f);
-            lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+            Button b = keyTile(key, labelFor(key), false, dp(76), 15);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(76), 1f);
+            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
             row.addView(b, lp);
-            buttons.put(key, b);
         }
         parent.addView(row);
     }
@@ -3388,16 +3552,18 @@ public class MainActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(6), 0, dp(2));
-        Button prev = styledButton("\u2039", BTN, 18);
+        Button prev = styledButton("\u2039", BTN, 22);
+        prev.setContentDescription("Previous buttons page");
         prev.setOnClickListener(v -> goPage(-1));
-        Button next = styledButton("\u203A", BTN, 18);
+        Button next = styledButton("\u203A", BTN, 22);
+        next.setContentDescription("Next buttons page");
         next.setOnClickListener(v -> goPage(1));
         pageDots = text("", 11, ACCENT, true);
         pageDots.setGravity(Gravity.CENTER);
-        row.addView(prev, new LinearLayout.LayoutParams(dp(42), dp(38)));
+        row.addView(prev, new LinearLayout.LayoutParams(dp(52), dp(46)));
         row.addView(pageDots, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(next, new LinearLayout.LayoutParams(dp(42), dp(38)));
+        row.addView(next, new LinearLayout.LayoutParams(dp(52), dp(46)));
         controlsCard.addView(row);
         buttons.put("__page_prev", prev);
         buttons.put("__page_next", next);
@@ -3436,10 +3602,10 @@ public class MainActivity extends Activity {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < pageCount; i++) {
             sb.append(i == currentPage ? "\u25CF" : "\u25CB");
-            if (i < pageCount - 1) sb.append("  ");
+            if (i < pageCount - 1) sb.append(" ");
         }
-        sb.append("   ").append(currentPage + 1).append("/").append(pageCount);
-        pageDots.setText(sb.toString());
+        String name = currentPage < pageTitles.size() ? pageTitles.get(currentPage) : "";
+        pageDots.setText(sb + "   " + name + "   " + (currentPage + 1) + "/" + pageCount);
     }
 
     private boolean isDpad(String key) {
