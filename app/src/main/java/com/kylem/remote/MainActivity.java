@@ -2943,122 +2943,209 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Every service the shortcut row knows about, in the order it is drawn. */
+    private static final String[] SHORTCUTS = {"netflix", "youtube", "prime", "disney",
+            "hbo", "spotify", "apps", "web"};
+
+    /**
+     * Shortcut row. Only entries that can reach the TV are drawn, with a coloured service badge,
+     * and the caption says exactly what each one will do. Services with no code anywhere in the
+     * database (YouTube, Prime Video, Disney+, Max, Spotify — the DB carries only {@code netflix}
+     * and {@code apps}) never get a tile that cannot fire; they live behind the phone button.
+     */
     private View shortcutGrid() {
         LinearLayout grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
-        List<String[]> items = new ArrayList<>();
-        for (String key : new String[]{"netflix", "youtube", "prime", "disney", "hbo",
-                "spotify", "apps"}) {
-            boolean hasIr = current != null && current.buttons.containsKey(key);
-            boolean always = "netflix".equals(key) || "youtube".equals(key)
-                    || "prime".equals(key) || "apps".equals(key);
-            if (hasIr || always) items.add(new String[]{labelFor(key), key, hasIr ? "1" : "0"});
-        }
-        boolean webIr = current != null && current.buttons.containsKey("browser");
-        items.add(new String[]{"Web", "web", webIr ? "1" : "0"});
 
-        for (int i = 0; i < items.size(); i += 3) {
+        List<String[]> items = new ArrayList<>();
+        List<String> phoneOnly = new ArrayList<>();
+        int viaMenu = 0;
+        for (String kind : SHORTCUTS) {
+            String route = shortcutRoute(kind);
+            if ("none".equals(route)) {
+                if (!"web".equals(kind) && !"apps".equals(kind)) phoneOnly.add(shortcutName(kind));
+                continue;
+            }
+            if ("menu".equals(route)) viaMenu++;
+            items.add(new String[]{shortcutName(kind), kind, route});
+        }
+
+        // Two per row: a 26 dp badge plus a name like "Prime Video" does not fit three across
+        // on a 360 dp screen, and an ellipsised service name looks like a broken button.
+        for (int i = 0; i < items.size(); i += 2) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            for (int j = 0; j < 3; j++) {
+            for (int j = 0; j < 2; j++) {
                 int n = i + j;
                 if (n >= items.size()) {
                     row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1f));
                     continue;
                 }
                 final String kind = items.get(n)[1];
-                boolean ir = "1".equals(items.get(n)[2]);
-                // A shortcut that can reach the TV is drawn in the device accent; one that
-                // only exists on the phone stays grey so the difference is visible at a glance.
-                int accent = ir ? tileAccent()
-                        : Surface.blend(tileAccent(), MUTED, 0.7f);
-                Button b = new KeyTile(this, palette, accent, kind, items.get(n)[0], 13, false,
-                        false);
-                b.setTextColor(ir ? TEXT : MUTED);
-                b.setContentDescription(items.get(n)[0] + (ir
-                        ? " shortcut, sent to the TV over IR"
-                        : " shortcut, not available as an IR key on this model"));
+                boolean direct = "key".equals(items.get(n)[2]);
+                int accent = direct ? tileAccent()
+                        : Surface.blend(tileAccent(), TEXT, 0.35f);
+                Button b = new KeyTile(this, palette, accent,
+                        BrandMark.of(this, kind, accent, 24), items.get(n)[0], 12.5f);
                 b.setOnClickListener(v -> activateShortcut(kind));
+                b.setContentDescription(items.get(n)[0] + (direct
+                        ? " shortcut, sent to the TV over IR"
+                        : " shortcut, opens this TV's app menu over IR"));
                 if ("web".equals(kind)) {
                     b.setOnLongClickListener(v -> {
                         editWebUrl();
                         return true;
                     });
                 }
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(56), 1f);
-                lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(60), 1f);
+                lp.setMargins(dp(5), dp(5), dp(5), dp(5));
                 row.addView(b, lp);
             }
             grid.addView(row);
         }
+
+        if (items.isEmpty() && phoneOnly.isEmpty()) {
+            grid.addView(text("This profile has no app keys at all.", 11, MUTED, false));
+        } else if (items.isEmpty()) {
+            grid.addView(text("No app keys on this " + (current == null ? "model"
+                    : current.brand) + " profile \u2014 these services cannot be launched on "
+                    + "the TV by any remote code.", 11, MUTED, false));
+        } else if (viaMenu > 0) {
+            grid.addView(text("A button in the accent sends the service's own key. A dimmer "
+                    + "one opens the TV's app menu, where the app already lives.", 11, MUTED,
+                    false));
+        }
+        if (!phoneOnly.isEmpty()) {
+            grid.addView(phoneAppsButton());
+        }
         return grid;
     }
 
+    /** The phone fallback, kept off the TV grid so no tile ever fails silently. */
+    /** Phone-only services stay reachable here, one tap from the chooser. */
+    private View phoneAppsButton() {
+        Button b = styledButton("More apps on this phone", BTN, 12);
+        b.setContentDescription("Open a streaming service on this phone");
+        b.setOnClickListener(v -> {
+            String[] kinds = {"netflix", "youtube", "prime", "disney", "hbo", "spotify",
+                    "web"};
+            String[] labels = new String[kinds.length];
+            for (int i = 0; i < kinds.length; i++) labels[i] = shortcutName(kinds[i]);
+            new AlertDialog.Builder(this)
+                    .setTitle("Open on this phone")
+                    .setItems(labels, (d, which) -> openOnPhone(kinds[which]))
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        lp.topMargin = dp(8);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
     /**
-     * Shortcuts are IR first now. If this profile has the app key — its own or one merged in
-     * from a sibling model — the TV receives it. Only when there is no such code does the
-     * phone browser come into it, and then the user is asked first instead of Chrome
-     * appearing on its own.
+     * What a shortcut can do, in three honest states:
+     *
+     * <ul>
+     *   <li>{@code key} — this profile carries the service's own IR key, from its own capture or
+     *       merged in from a sibling model of the same brand.</li>
+     *   <li>{@code menu} — no key of its own, but the model has an app launcher, so the TV can
+     *       still be driven to the place the app lives. That is the most any code can do: IR is
+     *       one-way and cannot carry a URL or a package name.</li>
+     *   <li>{@code none} — nothing this remote can send; the service only exists on the phone.</li>
+     * </ul>
      */
+    private String shortcutRoute(String kind) {
+        if (current == null) return "none";
+        if ("web".equals(kind)) {
+            return current.buttons.containsKey("browser") ? "key" : "none";
+        }
+        if (current.buttons.containsKey(kind)) return "key";
+        if (!"apps".equals(kind) && current.buttons.containsKey("apps")) return "menu";
+        return "none";
+    }
+
+    private String shortcutName(String kind) {
+        switch (kind) {
+            case "netflix":
+                return "Netflix";
+            case "youtube":
+                return "YouTube";
+            case "prime":
+                return "Prime Video";
+            case "disney":
+                return "Disney+";
+            case "hbo":
+                return "Max";
+            case "spotify":
+                return "Spotify";
+            case "apps":
+                return "Apps";
+            case "web":
+                return "Web";
+            default:
+                return labelFor(kind);
+        }
+    }
+
+    private String shortcutUrl(String kind) {
+        switch (kind) {
+            case "netflix":
+                return "https://www.netflix.com";
+            case "youtube":
+                return "https://www.youtube.com";
+            case "prime":
+                return "https://www.primevideo.com";
+            case "disney":
+                return "https://www.disneyplus.com";
+            case "hbo":
+                return "https://www.max.com";
+            case "spotify":
+                return "https://open.spotify.com";
+            case "copilot":
+                return "https://copilot.microsoft.com";
+            case "web":
+                return DeviceStore.webUrl(this);
+            default:
+                return null;
+        }
+    }
+
+    /** A shortcut always does the best thing it can, and says which one it did. */
     private void activateShortcut(String kind) {
         if (current == null) {
             status.setText("Pick a device remote first.");
             return;
         }
-        if (sendKeyIfPresent(kind)) return;
-        if ("web".equals(kind) && sendKeyIfPresent("browser")) return;
-
-        String name = labelFor(kind);
-        String url;
-        switch (kind) {
-            case "netflix":
-                url = "https://www.netflix.com";
-                break;
-            case "youtube":
-                url = "https://www.youtube.com";
-                break;
-            case "prime":
-                url = "https://www.primevideo.com";
-                break;
-            case "disney":
-                url = "https://www.disneyplus.com";
-                break;
-            case "hbo":
-                url = "https://www.max.com";
-                break;
-            case "spotify":
-                url = "https://open.spotify.com";
-                break;
-            case "copilot":
-                url = "https://copilot.microsoft.com";
-                break;
-            case "web":
-                url = DeviceStore.webUrl(this);
-                break;
-            default:
-                url = null;
-        }
-        if (url == null) {
-            status.setText("This profile has no " + name + " key. More \u2192 Add a "
-                    + "missing button can copy one from a sibling model.");
+        String route = shortcutRoute(kind);
+        String name = shortcutName(kind);
+        if ("key".equals(route)) {
+            send("web".equals(kind) ? "browser" : kind);
             return;
         }
+        if ("menu".equals(route)) {
+            send("apps");
+            status.setText(name + " has no key on this model \u2014 opened the TV's app menu.");
+            return;
+        }
+        openOnPhone(kind);
+    }
+
+    /** Confirm before leaving the app: a phone link is never a substitute for an IR press. */
+    private void openOnPhone(String kind) {
+        String url = shortcutUrl(kind);
+        if (url == null) return;
+        String name = shortcutName(kind);
+        String brand = current == null ? "This" : current.brand;
         new AlertDialog.Builder(this)
-                .setTitle(name + " has no IR key here")
-                .setMessage("This " + current.brand + " profile cannot send " + name
-                        + " to the TV. IR is one-way and cannot carry a web address, so the TV "
-                        + "itself cannot be told to open it.\n\nTry another " + current.brand
-                        + " model in the model list if one has the key, or open it on this "
-                        + "phone.")
+                .setTitle("Open " + name + " on this phone?")
+                .setMessage("The " + brand + " profile has no " + name + " IR key, and IR is "
+                        + "one-way \u2014 it cannot carry a web address or launch an app on the "
+                        + "TV. The link opens here instead.")
                 .setPositiveButton("Open on phone", (d, w) -> openInChrome(url, name))
                 .setNegativeButton("Cancel", null)
                 .show();
-    }
-
-    private boolean sendKeyIfPresent(String key) {
-        if (current == null || !current.buttons.containsKey(key)) return false;
-        send(key);
-        return true;
     }
 
     /**
@@ -3532,9 +3619,9 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         for (String key : keys) {
-            Button b = keyTile(key, labelFor(key), false, dp(76), 15);
+            Button b = keyTile(key, labelFor(key), false, dp(76), 14);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(76), 1f);
-            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+            lp.setMargins(dp(5), dp(5), dp(5), dp(5));
             row.addView(b, lp);
         }
         parent.addView(row);

@@ -25,8 +25,20 @@ final class KeyTile extends Button {
 
     /** Label-only plate for digits and letters, where a glyph would just repeat the text. */
     KeyTile(Context c, Palette p, int accent, String label, float labelSize) {
-        this(c, p, accent, null, label, labelSize, false, false);
+        this(c, p, accent, (String) null, label, labelSize, false, false);
         setGravity(Gravity.CENTER);
+    }
+
+    /**
+     * Shortcut plate: a coloured service badge beside the name rather than a line glyph, so the
+     * row reads like a launcher instead of a list of identical outlines.
+     */
+    KeyTile(Context c, Palette p, int accent, Drawable mark, String label, float labelSize) {
+        this(c, p, accent, (String) null, label, labelSize, false, false);
+        if (mark != null) {
+            setCompoundDrawablesRelativeWithIntrinsicBounds(mark, null, null, null);
+            setCompoundDrawablePadding((int) Surface.dp(c, 9));
+        }
     }
 
     KeyTile(Context c, Palette p, int accent, String key, String label, float labelSize,
@@ -37,6 +49,7 @@ final class KeyTile extends Button {
         setTextSize(labelSize);
         setTextColor(p.text);
         setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        setLetterSpacing(-0.01f);
         setStateListAnimator(null);
         setIncludeFontPadding(false);
         setGravity(iconOnly ? Gravity.CENTER : (Gravity.CENTER_VERTICAL | Gravity.START));
@@ -48,16 +61,16 @@ final class KeyTile extends Button {
         setMinimumHeight(0);
 
         if (key != null) {
-            int glyph = iconOnly || hero ? accent : Surface.blend(p.text, accent, 0.55f);
-            Drawable icon = KeyIcon.of(c, key, glyph, iconOnly ? 30 : (hero ? 26 : 22));
+            int glyph = iconOnly || hero ? accent : Surface.blend(p.text, accent, 0.3f);
+            Drawable icon = KeyIcon.of(c, key, glyph, iconOnly ? 30 : (hero ? 26 : 21));
             if (iconOnly) {
                 setCompoundDrawablesRelativeWithIntrinsicBounds(null, icon, null, null);
             } else {
                 setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
-                setCompoundDrawablePadding((int) Surface.dp(c, 12));
+                setCompoundDrawablePadding((int) Surface.dp(c, 10));
             }
         }
-        int side = (int) Surface.dp(c, 16);
+        int side = (int) Surface.dp(c, 14);
         setPadding(side, 0, side, 0);
 
         Drawable plate = Glass.plate(c, p, accent, hero);

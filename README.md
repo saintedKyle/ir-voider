@@ -46,6 +46,26 @@ this repository's Releases.
 > remotes and macros because backups are off. After this install, updates work
 > normally again.
 
+## What's new in 1.8.1
+
+- **The shortcut row only offers what can actually fire.** The database holds app
+  keys for exactly two services: `netflix` and the TV's own launcher (`apps`). There
+  is no YouTube, Prime Video, Disney+, Max or Spotify code anywhere in its 90,056
+  keys, so a tile for them could never do anything on the TV. Those services now live
+  behind **Open on this phone** instead of sitting on the grid and failing.
+- **App-menu fallback.** If the selected model carries the launcher key, tapping
+  YouTube, Prime or the rest sends that key and says so, so the TV opens the screen
+  the app is on. That is the furthest any remote code can go: IR cannot carry a URL.
+- **Coloured service badges.** Shortcuts now carry a colour mark instead of a grey
+  outline — Netflix's red N on black, YouTube's play wedge, Prime's cyan field and
+  smile, Disney+ navy, Max violet, Spotify green, a tinted app grid for the launcher.
+  They are drawn as vectors in `BrandMark.java`, not vendor artwork, and sized so the
+  service name fits beside them (two per row, no ellipsis).
+- **Keys look struck, not smeared.** Gradients in the glass plates are dithered, which
+  kills the vertical banding that made the tiles read as cheap on OLED; the rim is
+  brighter where the light lands and accent-tinted underneath. Glyph strokes are
+  thicker, and Power is red on every page.
+
 ## What's new in 1.8
 
 - **The controls pages are rebuilt around the buttons.** Every key on the swipeable
@@ -66,11 +86,9 @@ this repository's Releases.
 - **Aircon keys for Haier and AirMax.** Haier's three captures now combine into
   mode/speed/temp/timer instead of Power only. AirMax remains Power, Power Off and
   Light: that is every code the database holds for it, and no IR code is invented.
-- **Shortcuts go to the TV first.** Netflix, YouTube, Prime, Disney+, HBO, Spotify
-  and Apps now always try the TV's own IR key, including keys merged from a sibling
-  model. A shortcut with no IR code on this model is drawn grey and asks before it
-  opens on the phone — Chrome no longer appears by itself. IR is one-way and cannot
-  carry a URL, so a profile without the app key genuinely cannot launch it on the TV.
+- **Shortcuts go to the TV first.** A shortcut now tries the TV's own IR key before
+  it offers the phone, and Chrome never appears by itself. Which services can really
+  be sent is a database fact, covered under 1.8.1 above.
 - **Fewer dropped presses.** Taps wait in a short queue behind the frame being sent
   instead of being thrown away while the emitter is busy, which is what made fast
   presses feel late. Hold-to-repeat starts in 380 ms instead of 450 ms.

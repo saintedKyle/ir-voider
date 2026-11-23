@@ -31,7 +31,9 @@ final class KeyIcon {
 
     static Drawable of(Context c, String key, int color, int sizeDp) {
         int px = Math.max(12, (int) Surface.dp(c, sizeDp));
-        return new Glyph(key == null ? "" : key, color, px);
+        // Power carries the one colour convention every remote already uses: red means off.
+        int ink = "power".equals(key) || "power_off".equals(key) ? 0xFFE8574A : color;
+        return new Glyph(key == null ? "" : key, ink, px);
     }
 
     private static final class Glyph extends Drawable {
@@ -48,7 +50,7 @@ final class KeyIcon {
             this.key = key;
             this.size = size;
             stroke.setStyle(Paint.Style.STROKE);
-            stroke.setStrokeWidth(1.7f);
+            stroke.setStrokeWidth(2.0f);
             stroke.setStrokeCap(Paint.Cap.ROUND);
             stroke.setStrokeJoin(Paint.Join.ROUND);
             stroke.setColor(color);

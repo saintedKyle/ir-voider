@@ -12,8 +12,8 @@ android {
         applicationId "com.kylem.remote"
         minSdk 23
         targetSdk 36
-        versionCode 26
-        versionName "1.8.0"
+        versionCode 27
+        versionName "1.8.1"
         buildConfigField "String", "UPDATE_REPO", "\"saintedKyle/ir-voider\""
     }
 
