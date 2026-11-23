@@ -32,8 +32,11 @@ this repository's Releases.
 > saved devices. Only a build signed with a different key has to be uninstalled
 > first — Android blocks in-place updates when the signing key changes.
 >
-> **1.8.0 (versionCode 26) is signed with the same key as 1.7.0**, so it installs
-> straight over it and keeps saved remotes, macros, themes and settings.
+> **1.8.0 (versionCode 26) starts a new signing key.** The 1.7.0 key was lost with
+> the build machine and the copy in the repository secrets no longer decoded, so
+> 1.8.0 is signed with a freshly generated `CN=IR Voider` key. Installing it over
+> 1.7.0 needs one uninstall first, which clears saved remotes and macros because
+> backups are off. From 1.8.0 onward updates install in place again.
 >
 > **1.7.0 (versionCode 25) is release-signed** with a new `CN=IR Voider` key
 > generated for this release. It installs over itself and future builds signed with
