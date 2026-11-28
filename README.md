@@ -1,7 +1,7 @@
 # IR Voider
 
 <p align="center">
-  <img src="docs/images/banner.png" alt="IR Voider — offline IR remote for Android phones" width="100%">
+  <img src="docs/images/banner.png" alt="IR Voider — offline IR remote for Android phones, installed as Calculator" width="100%">
 </p>
 
 IR Voider turns an **Android phone with an IR blaster** — built-in, or two LEDs you
@@ -342,7 +342,9 @@ dumps, drops anything Android cannot transmit, and writes `assets/remotes.json`
 (the index) plus one `assets/db/<category>.json` shard per category, which the
 app loads on demand. The README artwork comes from `python
 tools/make_readme_images.py` and `python tools/make_theme_sheet.py`, which redraw
-the same shading maths in Pillow.
+the same shading maths in Pillow. The banner, the social card and the preview
+header were regenerated for 1.9.1 with the current figures and the calculator
+identity; the scripts still draw the earlier layout.
 
 ## License, forks and contributions
 
@@ -363,7 +365,7 @@ requests are not accepted.
   <img src="docs/images/preview.png" alt="IR Voider UI preview: remote, scanner and air-conditioner screens" width="100%">
 </p>
 
-<p align="center"><em>Illustrative UI preview — shaded plates, not flat fills. Buttons depend on the selected remote profile, and pages are swipeable.</em></p>
+<p align="center"><em>Illustrative UI preview — shaded plates, not flat fills. These are the screens behind the lock: the app opens on a calculator, and <code>54321</code> then <code>=</code> reaches the pages above. Buttons depend on the selected remote profile, and pages are swipeable.</em></p>
 
 ## Docs
 
