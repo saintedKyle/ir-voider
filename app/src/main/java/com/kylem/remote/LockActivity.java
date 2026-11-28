@@ -261,8 +261,9 @@ public class LockActivity extends Activity {
 
     private void equals() {
         String expr = input.toString();
-        // The one hidden path. Exact digits, nothing else, no animation, no sound.
-        if (Vault.PIN.equals(expr)) {
+        // The one hidden path. An exact match against the stored PIN (or the default), nothing
+        // else — no animation, no sound, no visible difference from a normal calculation.
+        if (Vault.matches(this, expr)) {
             Vault.unlock();
             Intent main = new Intent(this, MainActivity.class);
             main.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

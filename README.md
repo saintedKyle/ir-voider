@@ -67,7 +67,11 @@ Since 1.9 the launcher entry is a plain calculator, not the remote.
 - **MainActivity is no longer exported** and checks the in-memory flag on create, so the vault
   screen cannot be started from outside or restored by the system.
 
-The PIN lives in `Vault.PIN`; the calculator itself is `LockActivity`.
+- **The PIN is yours to set.** More → Unlock PIN changes it: 4 to 10 digits, no leading zero
+  (the calculator drops one, so such a PIN could never be typed). Only a salted PBKDF2 hash is
+  stored — never the digits — and the check is made against that hash on every `=`. "Use default"
+  puts `54321` back; wiping the app also restores it, which is the only way in if the PIN is
+  forgotten. The calculator itself is `LockActivity`.
 
 ## What's new in 1.8.1
 

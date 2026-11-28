@@ -5246,17 +5246,26 @@ public class MainActivity extends Activity {
                             dialog.dismiss();
                             showUpdatesDialog();
                         })));
+        panel.addView(sectionLabel("SECURITY"));
         panel.addView(tileRow(
+                tile("Unlock PIN", Vault.hasCustomPin(this) ? "Custom PIN set"
+                                : "Default " + Vault.DEFAULT_PIN,
+                        v -> {
+                            dialog.dismiss();
+                            showUnlockPinDialog();
+                        }),
                 tile("Panic wipe", "Erase everything now",
                         v -> {
                             dialog.dismiss();
                             showPanicWipe();
-                        }),
+                        })));
+        panel.addView(tileRow(
                 tile("About", "Sources, limits, licence",
                         v -> {
                             dialog.dismiss();
                             showAbout();
-                        })));
+                        }),
+                null));
 
         addClose(panel, dialog);
         showSheet(dialog, panel, 0.86f);
@@ -6056,6 +6065,85 @@ public class MainActivity extends Activity {
                 .setMessage(message)
                 .setPositiveButton("Close", null)
                 .show();
+    }
+
+    /** Current PIN state, with the two things that can be done to it. */
+    private void showUnlockPinDialog() {
+        boolean custom = Vault.hasCustomPin(this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Unlock PIN")
+                .setMessage(custom
+                        ? "A custom PIN is set. Only a salted PBKDF2 hash of it is stored, so the "
+                        + "app cannot show it back to you.\n\nOn the calculator, type the PIN and "
+                        + "press = to open the vault."
+                        : "The default PIN is " + Vault.DEFAULT_PIN + ". On the calculator, type "
+                        + "it and press = to open the vault.\n\nA forgotten custom PIN can only be "
+                        + "cleared by wiping the app or reinstalling it, which restores the "
+                        + "default.")
+                .setPositiveButton("Change", (d, w) -> showPinEntryDialog())
+                .setNegativeButton("Cancel", null);
+        if (custom) {
+            builder.setNeutralButton("Use default", (d, w) -> {
+                Vault.setPin(this, null);
+                status.setText("Unlock PIN reset to " + Vault.DEFAULT_PIN + ".");
+            });
+        }
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        dialog.getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE);
+    }
+
+    /** Two masked fields; nothing is stored until both match and pass validation. */
+    private void showPinEntryDialog() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(6), dp(20), 0);
+        EditText first = pinField("New PIN");
+        EditText again = pinField("Repeat PIN");
+        box.addView(first);
+        box.addView(again);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("New unlock PIN")
+                .setMessage(Vault.MIN_LEN + " to " + Vault.MAX_LEN
+                        + " digits, and it cannot start with 0 — the calculator drops a leading "
+                        + "zero, so such a PIN could never be typed.")
+                .setView(box)
+                .setPositiveButton("Save", null)
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String pin = first.getText().toString().trim();
+                    String problem = Vault.problemWith(pin);
+                    if (problem != null) {
+                        first.setError(problem);
+                        return;
+                    }
+                    if (!pin.equals(again.getText().toString().trim())) {
+                        again.setError("Does not match");
+                        return;
+                    }
+                    Vault.setPin(this, pin);
+                    status.setText("Unlock PIN changed. Type it, then = on the calculator.");
+                    dialog.dismiss();
+                }));
+        dialog.show();
+        dialog.getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE);
+    }
+
+    private EditText pinField(String hint) {
+        EditText field = new EditText(this);
+        field.setHint(hint);
+        field.setInputType(InputType.TYPE_CLASS_NUMBER
+                | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        field.setSingleLine(true);
+        field.setTextSize(18);
+        field.setTextColor(TEXT);
+        field.setHintTextColor(MUTED);
+        return field;
     }
 
     /**
