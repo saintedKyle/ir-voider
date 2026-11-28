@@ -284,8 +284,8 @@ public class MainActivity extends Activity {
 
     private static final String[] RETRO_LINES = {
             "MOUNTING REMOTE TAPES...",
-            "READING 5,666 REMOTES...",
-            "INDEXING 90,054 CODES...",
+            "READING 7,612 REMOTES...",
+            "INDEXING 131,411 CODES...",
             "CALIBRATING 38 kHz CARRIER...",
             "INSERT COIN TO CONTINUE"
     };
@@ -693,7 +693,7 @@ public class MainActivity extends Activity {
         statusRow.addView(retroCursorView);
         screen.addView(statusRow);
 
-        retroLogView = mono("> 5,666 REMOTES / 90,054 CODES\n> 2,050 BRANDS / 40 CATEGORIES",
+        retroLogView = mono("> 7,612 REMOTES / 131,411 CODES\n> 2,562 BRANDS / 41 CATEGORIES",
                 9, Surface.blend(MUTED, ACCENT, 0.25f), false);
         retroLogView.setPadding(0, dp(14), 0, 0);
         retroLogView.setLineSpacing(dp(2), 1f);

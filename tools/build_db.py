@@ -32,7 +32,9 @@ OUT_CATEGORIES = OrderedDict([
     ("Dust_Collectors", "Dust Collector"), ("Head_Units", "Head Unit"),
     ("Universal_TV_Remotes", "Universal Remote"),
     ("Videoconferencing", "Video Conferencing"),
-    ("Miscellaneous", "Misc"),
+    ("Miscellaneous", "Misc"), ("Bidet", "Bidet"),
+    ("Window_cleaners", "Vacuum"), ("KVM", "Converter"),
+    ("Computers", "Misc"), ("Handicap_Ceiling_Lifts", "Misc"),
 ])
 OUT = "app/src/main/assets/remotes.json"
 
@@ -347,6 +349,50 @@ BUTTON_ALIASES.update({
     "toggle_power": "power", "power_button": "power", "system_standby": "power",
 })
 
+# Spellings that fill the rest of a keypad. The converted dumps and the older
+# community files abbreviate heavily ("rew", "ffwd", "rec", "channelup"), so
+# without these a real capture looks like a remote with three buttons on it.
+BUTTON_ALIASES.update({
+    "rew": "rewind", "rev": "rewind", "reverse": "rewind", "rewind_": "rewind",
+    "fwd": "forward", "ffwd": "forward", "fastforward": "forward",
+    "fast_fwd": "forward", "ff": "forward", "rwd": "rewind",
+    "rec": "record", "rec_": "record", "recording": "record",
+    "channelup": "ch_up", "channel_up": "ch_up", "channel+": "ch_up",
+    "channel_+": "ch_up", "chup": "ch_up", "ch_next_": "ch_up",
+    "channeldown": "ch_down", "channel_down": "ch_down", "channel-": "ch_down",
+    "channel_-": "ch_down", "chdn": "ch_down", "chdown": "ch_down",
+    "volup": "vol_up", "volumeup": "vol_up", "vol_up_": "vol_up",
+    "voldn": "vol_down", "voldown": "vol_down", "volumedown": "vol_down",
+    "volume_dn": "vol_down", "vol_dn": "vol_down",
+    "up_arrow": "up", "arrowup": "up", "cursor_up": "up", "cursor_up_": "up",
+    "dn_arrow": "down", "down_arrow": "down", "arrowdown": "down",
+    "cursor_down": "down", "cursor_dn": "down",
+    "left_arrow": "left", "arrowleft": "left", "cursor_left": "left",
+    "right_arrow": "right", "arrowright": "right", "cursor_right": "right",
+    "playpause": "play_pause", "pause_play": "play_pause",
+    "favorites": "fav", "favourite": "fav", "fav_": "fav",
+    "recall": "last", "ch_return": "last", "ch_ret": "last", "last_ch": "last",
+    "top_menu": "menu", "main_menu": "menu", "osd": "menu", "menu_": "menu",
+    "aux": "input", "phono": "input", "tvvcr": "input", "tvvideo": "input",
+    "tvradio": "input", "usb": "input", "av": "input", "sat": "input",
+    "tuner": "input", "fm": "input", "am": "input", "source_": "input",
+})
+for _d in range(10):
+    BUTTON_ALIASES["0%d" % _d] = "num_%d" % _d
+
+# Words that are unambiguous on their own, so a brand- or device-prefixed key
+# ("Lasko_power", "Power_tcl") may be resolved from its parts. Deliberately
+# excludes bare "on"/"off": "C1_on" on a light strip is a preset, not power.
+STRONG = {
+    "power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
+    "input", "up", "down", "left", "right", "ok", "back", "home", "menu",
+    "exit", "info", "guide", "play_pause", "stop", "rewind", "forward",
+    "prev", "next", "record", "temp_up", "temp_down", "mode", "fan", "swing",
+    "speed", "light", "timer", "sleep", "subtitle", "audio", "aspect", "last",
+    "fav", "apps", "netflix", "zoom_in", "zoom_out", "brightness_up",
+    "brightness_down", "color", "red", "green", "yellow", "blue",
+} | {"num_%d" % d for d in range(10)}
+
 KEEP = ["power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
         "input", "up", "down", "left", "right", "ok", "back", "home", "menu",
         "exit", "info", "guide", "play_pause", "stop", "rewind", "forward",
@@ -357,10 +403,34 @@ KEEP = ["power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
         "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
         "num_8", "num_9", "dash", "dot"]
 
+# Captures that spell the power key out instead of calling it "Power". A capture with a
+# separate On and Off is exactly the useful case: Power sends On, Power Off sends Off.
+POWER_ALIASES = ("power_on", "poweron", "power_toggle", "turn_on", "all_on")
+
+# A capture with no power key at all is still a remote: an LED strip, a fan, a camera
+# shutter. It is kept when there is enough of a keypad to be worth listing, because a
+# profile with six working keys is better than no profile at all.
+MIN_KEYS_WITHOUT_POWER = 3
+
+
+def _split_lookup(key):
+    """Resolve a decorated key name from its parts, weakest match last."""
+    parts = [p for p in re.split(r"[_\-]+", key) if p]
+    if len(parts) < 2:
+        return None
+    for cand in ("_".join(parts[1:]), "_".join(parts[:-1]), parts[-1], parts[0]):
+        hit = BUTTON_ALIASES.get(cand)
+        if hit in STRONG:
+            return hit
+    return None
+
 
 def normalize(name):
     key = re.sub(r"[^a-z0-9_+\-]", "", name.strip().lower().replace(" ", "_"))
-    return BUTTON_ALIASES.get(key)
+    hit = BUTTON_ALIASES.get(key)
+    if hit:
+        return hit
+    return _split_lookup(key)
 
 
 MIN_FREQ = 30000      # Android's ConsumerIrManager rejects carriers below this
@@ -551,7 +621,14 @@ def buttons_of(path, skipped):
             continue
         buttons[key] = res
     if "power" not in buttons:
-        return None
+        for alt in POWER_ALIASES:
+            if alt in buttons:
+                buttons["power"] = buttons[alt]
+                break
+    if "power" not in buttons:
+        usable = sum(1 for k in buttons if k in KEEP)
+        if usable < MIN_KEYS_WITHOUT_POWER:
+            return None
     return {k: [buttons[k][0], buttons[k][1]] for k in KEEP if k in buttons}
 
 
@@ -585,7 +662,8 @@ def make_tree():
             node = {"variants": Counter(), "remotes": [], "seen": set()}
             entry[key] = node
         node["variants"][brand_dir] += 1
-        freq, pattern = remote["buttons"]["power"]
+        # A kept remote may have no power key; dedupe on whichever key comes first.
+        freq, pattern = next(iter(remote["buttons"].values()))
         sig = (remote["name"].lower(), freq, tuple(pattern))
         if sig in node["seen"]:
             stats["duplicate"] += 1

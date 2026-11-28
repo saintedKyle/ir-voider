@@ -64,6 +64,36 @@ Since 1.9 the launcher entry is a plain calculator, not the remote.
 
 The calculator itself is `LockActivity`; the lock state and PIN live in `Vault.java`.
 
+## What's new in 1.9.2
+
+- **1,946 more remotes, in every category.** **5,666 → 7,612 remotes**, **90,054 → 131,411
+  codes**, **2,050 → 2,562 brands**, 40 → 41 categories. Audio receivers +434, Misc +407,
+  TVs +391, multimedia +148, cable/sat +104, CD players +96, VCRs +56, DVD players +51, LED
+  lighting +42, projectors +35, fans +24, aircon +19, toys +18, speakers +17, converters +17,
+  vacuums +16, cameras +13, consoles +10, plus the smaller categories. Every entry is still a
+  capture from Flipper-IRDB; nothing is invented.
+- **The keypad is read the way the files spell it.** Captures name their keys `rew`, `ffwd`,
+  `rec`, `channelup`, `cursor_up`, `volup`, `recall`, `favorites`, `play/pause`, `top_menu` —
+  none of which the old table knew, so those keys were dropped and a remote that really has
+  fourteen buttons arrived as four. The same fix resolves brand- and device-prefixed keys
+  (`Lasko_power`, `Power_tcl`, `Samsung_Volup`), which is why some whole remotes exist now that
+  used to be discarded as unreadable. Codes grew by 41,357, most of it buttons added to remotes
+  that were already listed.
+- **New device families.** The bidet, KVM switch, window cleaner, computer and ceiling-lift
+  folders were never read; they now fold into Bidet, Converter, Vacuum and Misc (BioBidet
+  BB-2000, for one).
+- **Power spelled out.** Captures that name the key `Power On`, `PowerOn`, `Turn On` or `All On`
+  now feed the POWER button instead of being dropped, so a remote with separate On and Off gets
+  both (Power sends On, Power Off sends Off).
+- **Profiles without a power key are kept when they are still useful.** A robot vacuum, a camera
+  shutter, an LED strip or a fan often has no power toggle at all — only direction keys, Home, or
+  colour. A capture with at least three recognised keys is now listed; it simply has no POWER
+  plate, and every other key works. Captures with one or two keys are still dropped as junk.
+- **Ace is still missing.** There is no `Ace` capture anywhere in Flipper-IRDB (checked every
+  path in the repository), so no codes for it can be added without making them up. `Acer` is
+  present. If a specific Ace model is a rebadge of another chassis, say which and it can be
+  aliased to that brand's capture.
+
 ## What's new in 1.9.1
 
 - **Set your own unlock PIN.** More → Unlock PIN now shows whether the default or a custom code
@@ -199,7 +229,7 @@ The calculator itself is `LockActivity`; the lock state and PIN live in `Vault.j
 
 ## What it does
 
-- **40 categories · 2,050 brands · 5,666 remotes · 90,054 IR codes** from Flipper-IRDB,
+- **41 categories · 2,562 brands · 7,612 remotes · 131,411 IR codes** from Flipper-IRDB,
   bundled offline.
 - TVs, ACs, projectors, fans, LED lights, soundbars, audio receivers, streaming
   and cable boxes, DVD/Blu-ray players, cameras, air purifiers, and more.
