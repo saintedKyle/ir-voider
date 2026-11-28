@@ -12,12 +12,18 @@ IR LED.
 **[Download the latest APK](https://github.com/saintedKyle/ir-voider/releases/latest)** ·
 [Phone compatibility](PHONE_COMPATIBILITY.md) · [Privacy](PRIVACY.md)
 
+> **It installs as “Calculator”.** Since 1.9 the launcher entry is a plain calculator, not the
+> remote: the name, the icon and the first screen are all a calculator. Type `54321` and press
+> `=` to open the remote. The code can be changed inside — **More → Unlock PIN** — and it is
+> stored only as a salted hash. See [the calculator shell](#the-calculator-shell-19).
+
 ## Install on your phone
 
 1. Download the latest APK from [Releases](https://github.com/saintedKyle/ir-voider/releases/latest).
 2. Open it on the phone. Android asks to allow installs from your browser or file
    manager — allow it.
-3. Install **IR Voider** and open it.
+3. Install **Calculator** and open it. That is IR Voider under its calculator front.
+4. Type `54321`, then `=`, to reach the remote. **More → Unlock PIN** changes that code.
 
 Requires **Android 6.0+** and an IR emitter: either the phone's **built-in blaster**
 or a **DIY two-LED blaster on the 3.5 mm headset jack** (see the jack-blaster bullet
@@ -28,32 +34,19 @@ neither. On MIUI/HyperOS:
 The APK is sideloaded, so Android may show a warning. Only install builds from
 this repository's Releases.
 
-> Upgrading from an earlier v1.4 APK? 1.5 installs straight over it and keeps your
-> saved devices. Only a build signed with a different key has to be uninstalled
-> first — Android blocks in-place updates when the signing key changes.
->
-> **1.8.0 (versionCode 26) starts a new signing key.** The 1.7.0 key was lost with
-> the build machine and the copy in the repository secrets no longer decoded, so
-> 1.8.0 is signed with a freshly generated `CN=IR Voider` key. Installing it over
-> 1.7.0 needs one uninstall first, which clears saved remotes and macros because
-> backups are off. From 1.8.0 onward updates install in place again.
->
-> **1.7.0 (versionCode 25) is release-signed** with a new `CN=IR Voider` key
-> generated for this release. It installs over itself and future builds signed with
-> the same key, keeping saved remotes, macros, themes and settings. Because the
-> original 1.6.5 key is gone, this one-time move needs an uninstall first if your
-> phone has **1.6.5 or an earlier debug-signed 1.7.0 build**. That clears saved
-> remotes and macros because backups are off. After this install, updates work
-> normally again.
+> **Installing over an older build.** 1.8.0 started a new signing key, so a phone still on
+> **1.7.0 or earlier** needs one uninstall first — that clears saved remotes and macros, because
+> backups are off. Every build from 1.8.0 on shares the same key and installs in place, keeping
+> your data, including the unlock PIN set inside the vault.
 
 ## The calculator shell (1.9)
 
 Since 1.9 the launcher entry is a plain calculator, not the remote.
 
 - **Working calculator front.** `LockActivity` is a genuine four-function calculator — digits,
-  decimal, percent, sign handling, × ÷ before + −, and a real evaluator. Type `54321` and press
-  `=` to open the vault; every other input just does math. There is no hint, icon or animation on
-  the unlock path.
+  decimal, percent, sign handling, × ÷ before + −, and a real evaluator. Type the PIN — `54321`
+  until you change it — and press `=` to open the vault; every other input just does math. There
+  is no hint, icon or animation on the unlock path.
 - **Screenshots and recordings are blocked everywhere.** `FLAG_SECURE` is set on every activity
   (and on API 33+, recents screenshots are disabled), so screen capture and the task-switcher
   thumbnail show a blank card.
@@ -66,18 +59,30 @@ Since 1.9 the launcher entry is a plain calculator, not the remote.
   uninstall prompt — an app cannot uninstall itself.
 - **MainActivity is no longer exported** and checks the in-memory flag on create, so the vault
   screen cannot be started from outside or restored by the system.
+- **The PIN can be changed from inside the vault** — **More → Unlock PIN**. See
+  [What's new in 1.9.1](#whats-new-in-191) for the rules and how it is stored.
 
-- **The PIN is yours to set.** More → Unlock PIN changes it: 4 to 10 digits, no leading zero
-  (the calculator drops one, so such a PIN could never be typed). Only a salted PBKDF2 hash is
-  stored — never the digits — and the check is made against that hash on every `=`. "Use default"
-  puts `54321` back; wiping the app also restores it, which is the only way in if the PIN is
-  forgotten. The calculator itself is `LockActivity`.
+The calculator itself is `LockActivity`; the lock state and PIN live in `Vault.java`.
+
+## What's new in 1.9.1
+
+- **Set your own unlock PIN.** More → Unlock PIN now shows whether the default or a custom code
+  is in use, and **Change** takes a new one: 4 to 10 digits, digits only, and it cannot start
+  with `0` because the calculator drops a leading zero while you type, so such a code could
+  never be entered. Bad input is reported on the field itself.
+- **Only a hash is stored.** The digits are never written to disk — the app keeps a salted
+  `PBKDF2WithHmacSHA1` hash (12,000 iterations, 128-bit key, 16-byte random salt) and cannot
+  show the PIN back to you. Ordinary arithmetic never pays for the hash: the calculator only
+  hashes a plain run of 4–10 digits.
+- **Getting back to `54321`.** **Use default** in the same panel clears the custom code; a panic
+  wipe or a reinstall does too. There is no “forgot PIN” bypass, so a forgotten custom code means
+  wiping the app to get back in.
 
 ## What's new in 1.8.1
 
 - **The shortcut row only offers what can actually fire.** The database holds app
   keys for exactly two services: `netflix` and the TV's own launcher (`apps`). There
-  is no YouTube, Prime Video, Disney+, Max or Spotify code anywhere in its 90,056
+  is no YouTube, Prime Video, Disney+, Max or Spotify code anywhere in its 90,054
   keys, so a tile for them could never do anything on the TV. Those services now live
   behind **Open on this phone** instead of sitting on the grid and failing.
 - **App-menu fallback.** If the selected model carries the launcher key, tapping
@@ -186,9 +191,11 @@ Since 1.9 the launcher entry is a plain calculator, not the remote.
 3. No reaction? Tap **Find code**. It sends one power code at a time; when the
    device reacts, tap **It worked**. **Previous** replays the last code.
 4. Save and name the remote with **⚙** (top-right).
-5. Use the **SHORTCUTS** row for Netflix, YouTube, Prime, Apps, Copilot and Web, or
-   **MACROS** in the controls header to build a sequence. **TEST** starts Test Storm.
-   Prime, Copilot and Web open in Chrome; Netflix, YouTube and Apps try the TV first.
+5. Use the **SHORTCUTS** row for Netflix, Prime, Apps and Web where the profile has the code
+   for them, or **MACROS** in the controls header to build a sequence. **TEST** starts Test
+   Storm. A shortcut sends the TV's own IR key; with no key for that service it opens the TV's
+   app menu, and services with no code anywhere in the database are behind **More apps on this
+   phone** rather than on the grid.
 
 ## What it does
 
@@ -272,7 +279,7 @@ Signal** (orange), **Void Amber** (gold), **Terrace Green**, **Teal Current**,
 **OLED Void** (true black for AMOLED) and **Bone Frost** — the light one, for
 daylight. The layout, type and control positions never change.
 
-1.7 adds a second, quieter layer: the controls header, page titles, power plate and
+On top of that sits a quieter layer: the controls header, page titles, power plate and
 shortcut chips take a muted tint from the selected brand — LG amber, TCL red,
 Samsung blue, Sony blue, Hisense green, Haier blue, AirMax cyan — mixed with the
 active theme so every theme keeps its own contrast. It is a tint, not a new layout.
@@ -312,7 +319,10 @@ instead, which is the closest thing to a real check.
 
 No account, analytics, ads, or tracking. `TRANSMIT_IR` is the only permission the
 remote uses; `INTERNET` and `ACCESS_NETWORK_STATE` exist only for the optional
-GitHub update check. See [PRIVACY.md](PRIVACY.md) or the hosted policy:
+GitHub update check. The vault PIN is kept on the device as a salted hash and is
+never transmitted or backed up (`allowBackup` is off), and every screen sets
+`FLAG_SECURE` so the app cannot be captured by screenshots or screen recording.
+See [PRIVACY.md](PRIVACY.md) or the hosted policy:
 https://saintedkyle.github.io/ir-voider/privacy.html
 
 ## Build from source
@@ -353,7 +363,7 @@ requests are not accepted.
   <img src="docs/images/preview.png" alt="IR Voider UI preview: remote, scanner and air-conditioner screens" width="100%">
 </p>
 
-<p align="center"><em>Illustrative UI preview — shaded plates, not flat fills. The layout, type and control positions are unchanged in 1.7; buttons depend on the selected remote profile, and pages are swipeable.</em></p>
+<p align="center"><em>Illustrative UI preview — shaded plates, not flat fills. Buttons depend on the selected remote profile, and pages are swipeable.</em></p>
 
 ## Docs
 
