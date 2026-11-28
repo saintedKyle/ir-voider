@@ -1,0 +1,44 @@
+name: Rebuild IR database
+
+# Regenerates the bundled IR database from the current Flipper-IRDB and publishes the result to
+# a branch for review. Nothing here invents codes: every entry comes from a capture in IRDB, and
+# a capture whose protocol the converter cannot encode is still dropped (the script prints the
+# skipped protocols).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Flipper-IRDB
+        run: |
+          git clone --depth 1 https://github.com/Lucaslhm/Flipper-IRDB.git data/irdb_all
+          echo "IRDB files: $(find data/irdb_all -name '*.ir' | wc -l)"
+
+      - name: Rebuild assets
+        run: python3 tools/build_db.py
+
+      - name: Summarise
+        run: |
+          du -sh app/src/main/assets/db
+          git status --short app/src/main/assets | head -50
+
+      - name: Publish to db-refresh
+        run: |
+          git config user.name "db-refresh"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A app/src/main/assets
+          if git diff --cached --quiet; then
+            echo "Database is already up to date."
+            exit 0
+          fi
+          git diff --cached --stat
+          git checkout -B db-refresh
+          git commit -m "chore(db): regenerate from Flipper-IRDB"
+          git push -f origin db-refresh
