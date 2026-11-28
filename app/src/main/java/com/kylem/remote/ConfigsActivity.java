@@ -65,6 +65,13 @@ public class ConfigsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!Vault.isUnlocked()) {
+            finish();
+            return;
+        }
+        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false);
         loadPalette();
         setTheme(palette.light ? R.style.AppTheme_Light : R.style.AppTheme);
         getWindow().setBackgroundDrawable(new ColorDrawable(BG));

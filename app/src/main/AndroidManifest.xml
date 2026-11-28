@@ -15,12 +15,27 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- The launcher sees a calculator. LockActivity is the only entry point; MainActivity is
+         not exported, so nothing outside this app can start the vault screen directly. -->
     <application
-        android:label="IR Voider"
+        android:name=".VaultApp"
+        android:label="Calculator"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="false"
+        android:fullBackupContent="false"
         android:theme="@style/AppTheme">
+        <activity
+            android:name=".LockActivity"
+            android:exported="true"
+            android:label="Calculator"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".LearnActivity"
             android:exported="false"
@@ -31,12 +46,8 @@
             android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
     </application>
 </manifest>

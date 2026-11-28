@@ -46,6 +46,29 @@ this repository's Releases.
 > remotes and macros because backups are off. After this install, updates work
 > normally again.
 
+## The calculator shell (1.9)
+
+Since 1.9 the launcher entry is a plain calculator, not the remote.
+
+- **Working calculator front.** `LockActivity` is a genuine four-function calculator — digits,
+  decimal, percent, sign handling, × ÷ before + −, and a real evaluator. Type `54321` and press
+  `=` to open the vault; every other input just does math. There is no hint, icon or animation on
+  the unlock path.
+- **Screenshots and recordings are blocked everywhere.** `FLAG_SECURE` is set on every activity
+  (and on API 33+, recents screenshots are disabled), so screen capture and the task-switcher
+  thumbnail show a blank card.
+- **Backgrounding locks immediately.** `VaultApp` watches activity lifetimes: when the last
+  activity stops, or the screen turns off, the in-memory unlock flag is cleared and the whole task
+  is finished and removed from Recents. The next launch starts at the calculator again.
+- **Panic wipe.** More → Panic wipe erases every preference file, database, cache, file and
+  external app-private directory, closes the vault, restarts into the calculator and kills the
+  process so nothing cached in memory is written back. A second button then opens the system
+  uninstall prompt — an app cannot uninstall itself.
+- **MainActivity is no longer exported** and checks the in-memory flag on create, so the vault
+  screen cannot be started from outside or restored by the system.
+
+The PIN lives in `Vault.PIN`; the calculator itself is `LockActivity`.
+
 ## What's new in 1.8.1
 
 - **The shortcut row only offers what can actually fire.** The database holds app

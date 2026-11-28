@@ -329,6 +329,19 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // MainActivity is neither exported nor the launcher, so the calculator is the only way
+        // in. Anything else — a restore, a stale task, a stray intent — lands back on it.
+        if (!Vault.isUnlocked()) {
+            startActivity(new Intent(this, LockActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+            return;
+        }
+        // No screenshots, no screen recording, no task-switcher thumbnail of the vault.
+        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false);
+
         loadPalette();
         setTheme(palette.light ? R.style.AppTheme_Light : R.style.AppTheme);
         ir = (ConsumerIrManager) getSystemService(Context.CONSUMER_IR_SERVICE);
@@ -5234,12 +5247,16 @@ public class MainActivity extends Activity {
                             showUpdatesDialog();
                         })));
         panel.addView(tileRow(
+                tile("Panic wipe", "Erase everything now",
+                        v -> {
+                            dialog.dismiss();
+                            showPanicWipe();
+                        }),
                 tile("About", "Sources, limits, licence",
                         v -> {
                             dialog.dismiss();
                             showAbout();
-                        }),
-                null));
+                        })));
 
         addClose(panel, dialog);
         showSheet(dialog, panel, 0.86f);
@@ -6039,6 +6056,34 @@ public class MainActivity extends Activity {
                 .setMessage(message)
                 .setPositiveButton("Close", null)
                 .show();
+    }
+
+    /**
+     * The panic switch. One tap from More, one confirmation, then the app erases itself back to
+     * a clean calculator; the uninstall path hands the rest to the system prompt, because an app
+     * cannot uninstall itself.
+     */
+    private void showPanicWipe() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Wipe everything?")
+                .setMessage("This erases every saved remote, macro, setting, log and cached "
+                        + "file in this app, closes the vault and returns to the calculator. "
+                        + "It cannot be undone.")
+                .setPositiveButton("Wipe now", (d, w) -> PanicWipe.wipe(this, false))
+                .setNeutralButton("Wipe and uninstall", (d, w) -> PanicWipe.wipe(this, true))
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.show();
+        // Dialogs are their own window, so FLAG_SECURE has to be repeated here.
+        dialog.getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        int red = 0xFFE8453C;
+        if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(red);
+        }
+        if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(red);
+        }
     }
 
     private void showAbout() {
