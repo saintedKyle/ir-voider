@@ -377,6 +377,28 @@ BUTTON_ALIASES.update({
     "tvradio": "input", "usb": "input", "av": "input", "sat": "input",
     "tuner": "input", "fm": "input", "am": "input", "source_": "input",
 })
+BUTTON_ALIASES.update({
+    "fast_fo": "forward", "fast_ba": "rewind", "fast_fw": "forward",
+    "fast_fw_": "forward", "fast_rev": "rewind", "skip_fwd": "forward",
+    "skip_rev": "rewind", "skip_forward": "forward", "skip_back": "rewind",
+    "oscillate": "swing", "oscillation": "swing", "osc": "swing",
+    "hdmi": "input", "hdmi_1": "input", "hdmi_2": "input", "hdmi_3": "input",
+    "hdmi_4": "input", "tv": "input", "cd": "input", "video": "input",
+    "bluetooth": "input", "bt": "input", "optical": "input", "coax": "input",
+    "component": "input", "pc": "input", "vga": "input", "dvi": "input",
+    "line_in": "input", "game": "input",
+    "youtube": "youtube", "prime": "prime", "prime_video": "prime",
+    "amazon_prime": "prime", "disney": "disney", "disney_plus": "disney",
+    "disney+": "disney", "hbo": "hbo", "hbo_max": "hbo", "max_hbo": "hbo",
+    "spotify": "spotify", "browser": "browser",
+})
+# A capture called "HDMI1" on an amplifier is a source key like any other.
+for _n in range(1, 5):
+    BUTTON_ALIASES["hdmi%d" % _n] = "input"
+# Single letters are the letter keys the keyboard page draws.
+for _c in "abcdefghijklmnopqrstuvwxyz":
+    BUTTON_ALIASES[_c] = "letter_" + _c
+
 for _d in range(10):
     BUTTON_ALIASES["0%d" % _d] = "num_%d" % _d
 
@@ -400,8 +422,29 @@ KEEP = ["power", "power_off", "vol_up", "vol_down", "mute", "ch_up", "ch_down",
         "speed", "light", "timer", "sleep", "brightness_up", "brightness_down",
         "color", "red", "green", "yellow", "blue", "zoom_in", "zoom_out",
         "subtitle", "audio", "aspect", "last", "fav", "apps", "netflix",
+        "youtube", "prime", "disney", "hbo", "spotify", "browser",
         "num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
-        "num_8", "num_9", "dash", "dot"]
+        "num_8", "num_9", "dash", "dot",
+        "letter_a", "letter_b", "letter_c", "letter_d", "letter_e", "letter_f",
+        "letter_g", "letter_h", "letter_i", "letter_j", "letter_k", "letter_l",
+        "letter_m", "letter_n", "letter_o", "letter_p", "letter_q", "letter_r",
+        "letter_s", "letter_t", "letter_u", "letter_v", "letter_w", "letter_x",
+        "letter_y", "letter_z", "space", "backspace", "enter"]
+
+# Names that mean nothing to a human, so a capture carrying one is not a button.
+JUNK_NAMES = {"unknown", "unnamed", "raw", "code", "btn", "button", "key", "keys",
+              "spare", "extra", "test", "na", "n_a", "no_name", "unused", "none",
+              "null", "empty", "disabled", "custom", "function", "unk", "new"}
+# Generated command tables: "s00c1a" from a Pronto dump, "code_17" from a script.
+AUTO_NAME = re.compile(r"^(s\d{2}c[0-9a-f]{2}|(code|cmd|sig|num|button|btn|key|fn)_?\d+)$")
+# Folder names that hold someone's experiments, not a device.
+SKIP_BRANDS = {"example", "examples", "test", "tests", "template", "templates",
+               "sample", "samples"}
+# A remote is a keypad, not a codebook: a Yamaha dump lists 700 commands. Canonical
+# keys always survive; the rest stop here so EXTRAS stays a page or two.
+MAX_KEYS = 48
+# A real button name: letters, digits, a dash or underscore, short enough to label.
+PLAUSIBLE = re.compile(r"^[a-z][a-z0-9_+\-]{0,23}$")
 
 # Captures that spell the power key out instead of calling it "Power". A capture with a
 # separate On and Off is exactly the useful case: Power sends On, Power Off sends Off.
@@ -605,10 +648,25 @@ def brand_key(name):
     return re.sub(r"[\s_]+", " ", name.strip().strip("()")).lower()
 
 
+def flat_name(raw):
+    """A capture name the alias table has never met, kept as it is written.
+
+    The app puts any key it knows nothing about on the EXTRAS page and draws its
+    initials, so a real button named "eject" or "freeze" is a working button, not
+    a reason to drop the capture.
+    """
+    flat = re.sub(r"[^a-z0-9_+\-]", "", raw.strip().lower().replace(" ", "_"))
+    if not flat or flat in JUNK_NAMES or not PLAUSIBLE.match(flat):
+        return None
+    if flat.startswith(("unknown", "unnamed", "no_name")) or AUTO_NAME.match(flat):
+        return None
+    return flat
+
+
 def buttons_of(path, skipped):
     buttons = {}
     for e in parse_ir(path):
-        key = normalize(e.get("name", ""))
+        key = normalize(e.get("name", "")) or flat_name(e.get("name", ""))
         if not key or key in buttons:
             continue
         res = to_pattern(e)
@@ -625,11 +683,13 @@ def buttons_of(path, skipped):
             if alt in buttons:
                 buttons["power"] = buttons[alt]
                 break
-    if "power" not in buttons:
-        usable = sum(1 for k in buttons if k in KEEP)
-        if usable < MIN_KEYS_WITHOUT_POWER:
-            return None
-    return {k: [buttons[k][0], buttons[k][1]] for k in KEEP if k in buttons}
+    if "power" not in buttons and len(buttons) < MIN_KEYS_WITHOUT_POWER:
+        return None
+    # Canonical keys first, so the pages that matter keep a stable order; anything
+    # else follows in capture order and lands on EXTRAS.
+    order = [k for k in KEEP if k in buttons]
+    order += [k for k in buttons if k not in KEEP][:max(0, MAX_KEYS - len(order))]
+    return {k: [buttons[k][0], buttons[k][1]] for k in order}
 
 
 def converted_items():
@@ -678,7 +738,7 @@ def make_tree():
             continue
         for brand in sorted(os.listdir(cpath)):
             bpath = os.path.join(cpath, brand)
-            if not os.path.isdir(bpath):
+            if not os.path.isdir(bpath) or brand_key(brand) in SKIP_BRANDS:
                 continue
             for fn in sorted(os.listdir(bpath)):
                 if not fn.endswith(".ir"):
@@ -691,6 +751,8 @@ def make_tree():
                     stats["main"] += 1
 
     for dtype, brand, name, path in converted_items():
+        if brand_key(brand) in SKIP_BRANDS:
+            continue
         btns = buttons_of(path, skipped)
         if btns is None:
             stats["no_power_converted"] += 1

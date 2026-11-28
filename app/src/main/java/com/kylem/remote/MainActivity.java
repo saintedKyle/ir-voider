@@ -284,8 +284,8 @@ public class MainActivity extends Activity {
 
     private static final String[] RETRO_LINES = {
             "MOUNTING REMOTE TAPES...",
-            "READING 7,612 REMOTES...",
-            "INDEXING 131,411 CODES...",
+            "READING 7,810 REMOTES...",
+            "INDEXING 201,230 CODES...",
             "CALIBRATING 38 kHz CARRIER...",
             "INSERT COIN TO CONTINUE"
     };
@@ -693,7 +693,7 @@ public class MainActivity extends Activity {
         statusRow.addView(retroCursorView);
         screen.addView(statusRow);
 
-        retroLogView = mono("> 7,612 REMOTES / 131,411 CODES\n> 2,562 BRANDS / 41 CATEGORIES",
+        retroLogView = mono("> 7,810 REMOTES / 201,230 CODES\n> 2,615 BRANDS / 41 CATEGORIES",
                 9, Surface.blend(MUTED, ACCENT, 0.25f), false);
         retroLogView.setPadding(0, dp(14), 0, 0);
         retroLogView.setLineSpacing(dp(2), 1f);
@@ -1834,13 +1834,12 @@ public class MainActivity extends Activity {
                 ? "Sent " + labelFor(key) + " \u00b7 target " + acTargetLabel() + "."
                 : "Sent " + labelFor(key) + ".";
         final Runnable emit = () -> {
-            if ("power_off".equals(key)) {
-                if (fixed > 1) transmit(code, fixed);
-                else transmit(code, repeats);
-            } else {
-                transmit(code, repeats);
-            }
-            status.setText(sent);
+            boolean queued;
+            if ("power_off".equals(key) && fixed > 1) queued = transmit(code, fixed);
+            else queued = transmit(code, repeats);
+            // Never claim a send that did not happen: transmit() refuses when the
+            // queue is full or the emitter is missing, and says why in the status.
+            if (queued) status.setText(sent);
         };
 
         // A shutdown clip belongs to the TV's own Power Off button. It plays on the
@@ -2008,7 +2007,11 @@ public class MainActivity extends Activity {
      */
     private int frameGapMs() {
         if (DeviceStore.forceMode(this)) return 25;
-        return current != null && "Air Conditioner".equals(current.category) ? 300 : 50;
+        if (current != null && "Air Conditioner".equals(current.category)) return 300;
+        // A repeated NEC/Samsung frame arrives on a ~108 ms repeat period; anything
+        // shorter can be read as one long burst and ignored. 110 ms is the gap real
+        // remotes use between full frames.
+        return 110;
     }
 
     /** Snap a requested carrier to a range the phone says it can emit. */
@@ -2065,8 +2068,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void transmit(Code code, boolean allowRepeat) {
-        transmit(code, allowRepeat, null);
+    private static final int IR_QUEUE_LIMIT = 8;
+
+    private boolean transmit(Code code, boolean allowRepeat) {
+        return transmit(code, allowRepeat, null);
     }
 
     private boolean transmit(Code code, boolean allowRepeat, Runnable onDone) {
@@ -2077,8 +2082,8 @@ public class MainActivity extends Activity {
         return transmit(code, allowRepeat ? repeats : 1, onDone);
     }
 
-    private void transmit(Code code, int repeats) {
-        transmit(code, repeats, null);
+    private boolean transmit(Code code, int repeats) {
+        return transmit(code, repeats, null);
     }
 
     private boolean transmit(Code code, int repeats, Runnable onDone) {
@@ -2095,8 +2100,12 @@ public class MainActivity extends Activity {
         }
         if (irExecutor.isShutdown()) return false;
         // A single-threaded emitter is fine, but refusing taps while one frame is in
-        // flight made fast presses feel late and dropped. Queue a few instead.
-        if (irInFlight.get() >= 5) return false;
+        // flight made fast presses feel late and dropped. Queue a few instead, and
+        // say so when the queue is full rather than dropping the press in silence.
+        if (irInFlight.get() >= IR_QUEUE_LIMIT) {
+            status.setText("Still sending \u2014 tap again in a moment.");
+            return false;
+        }
         irInFlight.incrementAndGet();
         final int count = Math.max(1, Math.min(3, repeats));
         DeviceStore.Calibration cal = DeviceStore.calibration(this, macroKey());
@@ -2147,8 +2156,7 @@ public class MainActivity extends Activity {
             return;
         }
         getWindow().getDecorView().performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-        transmit(code, 2);
-        status.setText("Sent POWER ×2.");
+        if (transmit(code, 2)) status.setText("Sent POWER ×2.");
     }
 
     /** Phone keyboard -> the IR keys this profile actually carries. */

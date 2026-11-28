@@ -66,22 +66,33 @@ The calculator itself is `LockActivity`; the lock state and PIN live in `Vault.j
 
 ## What's new in 1.9.2
 
-- **1,946 more remotes, in every category.** **5,666 → 7,612 remotes**, **90,054 → 131,411
-  codes**, **2,050 → 2,562 brands**, 40 → 41 categories. Audio receivers +434, Misc +407,
-  TVs +391, multimedia +148, cable/sat +104, CD players +96, VCRs +56, DVD players +51, LED
-  lighting +42, projectors +35, fans +24, aircon +19, toys +18, speakers +17, converters +17,
-  vacuums +16, cameras +13, consoles +10, plus the smaller categories. Every entry is still a
-  capture from Flipper-IRDB; nothing is invented.
+- **2,144 more remotes, in every category.** **5,666 → 7,810 remotes**, **90,054 → 201,230
+  codes**, **2,050 → 2,615 brands**, 40 → 41 categories. Audio receivers +475, Misc +460,
+  TVs +400, multimedia +158, cable/sat +114, CD players +107, VCRs +64, DVD players +61, LED
+  lighting +43, aircon +42, projectors +37, fans +28, plus the smaller categories. Every entry
+  is still a capture from Flipper-IRDB; nothing is invented.
+- **Every button the capture carries is now a button on the phone.** The converter used to keep
+  only the 66 keys it had a plate and an icon for, so a receiver that really sends `eject`,
+  `freeze`, `dimmer`, `oscillate`, `tools`, `picture` or `ch_list` arrived with a third of its
+  keypad. Those keys now show up on the EXTRAS pages under their own names, which is where the
+  extra 111,176 codes come from. Captures that consist *only* of such keys are listed too — a
+  device with no volume and no channel key is still a device.
 - **The keypad is read the way the files spell it.** Captures name their keys `rew`, `ffwd`,
-  `rec`, `channelup`, `cursor_up`, `volup`, `recall`, `favorites`, `play/pause`, `top_menu` —
-  none of which the old table knew, so those keys were dropped and a remote that really has
-  fourteen buttons arrived as four. The same fix resolves brand- and device-prefixed keys
-  (`Lasko_power`, `Power_tcl`, `Samsung_Volup`), which is why some whole remotes exist now that
-  used to be discarded as unreadable. Codes grew by 41,357, most of it buttons added to remotes
-  that were already listed.
+  `rec`, `channelup`, `cursor_up`, `volup`, `recall`, `fast_fo`, `oscillate`, single letters, or
+  the app keys `youtube`/`prime`/`spotify` — none of which the old table knew, so those keys were
+  dropped and a remote that really has fourteen buttons arrived as four. The same fix resolves
+  brand- and device-prefixed keys (`Lasko_power`, `Power_tcl`), which is why some whole remotes
+  exist now that used to be discarded as unreadable. Source keys (`HDMI`, `TV`, `CD`, `BT`) feed
+  Input; the app's own app keys feed the Apps page and the keyboard page.
 - **New device families.** The bidet, KVM switch, window cleaner, computer and ceiling-lift
   folders were never read; they now fold into Bidet, Converter, Vacuum and Misc (BioBidet
   BB-2000, for one).
+- **A dropped press is no longer reported as sent.** Tapping faster than the emitter could keep
+  up used to show “Sent” while the press was thrown away. The status line now only says
+  *Sent* when a frame was actually queued, the queue is deeper, and a full queue says “Still
+  sending — tap again in a moment.” Repeated frames also wait 110 ms instead of 50 ms, the gap a
+  real NEC remote leaves between frames, so a boosted tap is not merged into one burst and
+  ignored.
 - **Power spelled out.** Captures that name the key `Power On`, `PowerOn`, `Turn On` or `All On`
   now feed the POWER button instead of being dropped, so a remote with separate On and Off gets
   both (Power sends On, Power Off sends Off).
@@ -229,7 +240,7 @@ The calculator itself is `LockActivity`; the lock state and PIN live in `Vault.j
 
 ## What it does
 
-- **41 categories · 2,562 brands · 7,612 remotes · 131,411 IR codes** from Flipper-IRDB,
+- **41 categories · 2,615 brands · 7,810 remotes · 201,230 IR codes** from Flipper-IRDB,
   bundled offline.
 - TVs, ACs, projectors, fans, LED lights, soundbars, audio receivers, streaming
   and cable boxes, DVD/Blu-ray players, cameras, air purifiers, and more.
